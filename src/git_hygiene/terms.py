@@ -27,7 +27,18 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, NamedTuple, Optional
+from typing import TYPE_CHECKING, List, NamedTuple, Optional
+
+if TYPE_CHECKING:
+    # typing.Pattern, not re.Pattern: re.Pattern is 3.8+ and the floor
+    # here is 3.6.8 (RHEL 8.10). typing.Pattern was in turn removed in
+    # 3.12, so the import is confined to TYPE_CHECKING - it never
+    # executes, which keeps the annotation correct for a checker
+    # targeting either end of the supported range and harmless at
+    # runtime on both. Caught by mypy 0.971 run under the 3.6.9
+    # replica; the runtime tests could not see it, because the
+    # annotation below is quoted and so is never evaluated.
+    from typing import Pattern
 
 DEFAULT_TERM_FILE = Path.home() / ".config" / "git" / "deny-terms.txt"
 
@@ -52,7 +63,7 @@ class TermPattern(NamedTuple):
     """One compiled term, with the provenance that governs whether a
     match against it may be printed."""
 
-    regex: "re.Pattern[str]"
+    regex: "Pattern[str]"
     term: str
     source: Path
     klass: str  # "public" | "private"
