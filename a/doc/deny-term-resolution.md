@@ -61,7 +61,7 @@ single correct answer across both cases.
 | | `private` | `public` |
 |---|---|---|
 | Tracked by git | Hard error, exit non-zero | Expected, no comment |
-| Matched term printed | Never, location only | Only with `--show-terms` |
+| Matched term printed | Only with `--show-private-terms` | Yes, by default |
 | Source file absent | Silent pass | Fail loudly |
 
 The absent row is the one that could not be decided before. Failing open is
@@ -135,21 +135,37 @@ in the same file is an error, not a last-one-wins.
 
 ## Printing matched terms
 
-Default: locations only, never terms, for every source of either class. This
-preserves today's guarantee without qualification.
+Decided 2026-08-16, Philip, on the principle that user utility is the point and
+that a report nobody can act on is a poor report.
 
-`--show-terms` (env `GIT_HYGIENE_SHOW_TERMS`) prints the matched term **only
-when the pattern came from a `public` source**. Terms from `private` sources
-are never printed and the flag cannot reach them.
+**A term from a `public` source is printed by default.** It lives in a tracked
+file in the same checkout, so withholding it discloses nothing and only forces
+a manual search of the list. Naming it makes the hit actionable immediately,
+which matters most on a large `audit-tree --objects` run reporting hits against
+blobs that cannot be opened by path.
 
-The reasoning: printing a public term discloses nothing, since it lives in a
-tracked file in the same checkout, and it makes a hit actionable without
-searching the list by hand. But making it the default would convert a
-structural guarantee into one that holds only while every file in the stack is
-classified correctly, and a misclassified private list would print its terms
-into CI logs, which are long lived, often widely readable, and routinely pasted
-into issues. Off by default means the safe behavior is what you get without
-thinking about it, and a team whose stack is entirely public opts in once.
+**A term from a `private` source is withheld by default**, location only, as
+today. `--show-private-terms` (env `GIT_HYGIENE_SHOW_PRIVATE_TERMS`) prints
+those too. It is opt-in because the default should be the cautious one, not
+because the output is forbidden: an operator who wants the full report can have
+it, and it is theirs to manage.
+
+**Managing the consequences is the user's call, not the tool's.** CI logs are
+long lived and often widely readable, and a private term printed into one is a
+real exposure. That is a property of where the operator chose to run the tool
+and what they chose to retain, and this project does not get to make that
+decision for them by hiding information they asked for. The flag is documented
+with the risk stated plainly, once, and then trusted.
+
+**What the tool does not do is let the consequence become a commit.** Printing
+a private term is permitted; committing a file that contains one is not, and
+that is enforced by the hooks themselves rather than by discretion. A saved
+transcript, a captured log, a pasted report: any of these staged in a repo
+under `deny-terms` fails the commit exactly as any other leak would. The
+guarantee is not that a private term never appears on a screen. It is that it
+never reaches a repository, and that guarantee is mechanical.
+
+For the same reason a tracked private term *file* remains a hard error, below.
 
 This requires per pattern provenance: each compiled pattern carries its source
 path and that source's class, so a merged set prints selectively rather than
@@ -245,12 +261,30 @@ environment variable, option winning.
 | `--no-inherit` | `GIT_HYGIENE_NO_INHERIT` | Use only the highest explicit source. For tests and deterministic CI. |
 | `--no-walk` | `GIT_HYGIENE_NO_WALK` | Skip the ancestor walk, keep the fixed layers. |
 | `--walk-to DIR` | `GIT_HYGIENE_WALK_TO` | Bound the walk. |
-| `--show-terms` | `GIT_HYGIENE_SHOW_TERMS` | Print matched terms from public sources only. |
+| `--show-private-terms` | `GIT_HYGIENE_SHOW_PRIVATE_TERMS` | Also print matched terms from private sources. Public terms print by default. |
+| `--no-show-terms` | - | Suppress all term printing, locations only. For a caller that wants today's behavior. |
 | `--explain` | - | Print resolution and exit. |
 
 `GIT_DENY_TERMS` changing from one path to a path list is the breaking change
 that makes this v0.2.0. A single path remains valid input, so the common
 existing usage keeps working; the semantics around it do not.
+
+## The git floor is 2.21, and what that forces
+
+Decided 2026-08-16, Philip: git 2.21 is a fixed floor, matching RHEL 8.10 as
+the Python floor does. Every git invocation in this design is 2.21 safe,
+including `ls-files --error-unmatch` and `rev-parse --show-toplevel`, both long
+predating it.
+
+The consequence is not about this design's git usage but about its front end.
+`pre-commit` cannot run on git 2.21 at all, since it drives
+`ls-files --deduplicate`, added in git 2.31. A fixed 2.21 floor therefore means
+**`pre-commit` cannot be the only way to invoke these hooks**, and a native git
+hook front end calling the console scripts directly is required rather than
+optional. That is a separate piece of work, tracked outside this document, but
+it constrains the interface here: everything must be reachable from a plain
+`.git/hooks/pre-commit` shell script with no `pre-commit` present, which the
+option and environment surface above already satisfies.
 
 ## Implementation notes
 
