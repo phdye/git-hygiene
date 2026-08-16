@@ -232,13 +232,23 @@ though the rhel-root rule and the path facts above still do.
 
 ## Open items
 
-- **The git 2.21 / `pre-commit` blocker is unresolved.** See above and
-  `a/handoff/initial.md`. Decide before building further on top of
-  `pre-commit` for the rhel replica specifically.
-- **`tests/test_packaging.py` had an uncommitted, questionable change** as of
-  the last handoff — a `MIN_GIT` skip written before the 2.21 requirement was
-  understood. Check its current state before trusting the packaging tests;
-  the handoff explains why skipping on old git is likely the wrong shape.
-- Nothing else carried forward. New entries go here as they arise; anything
-  larger than a line gets its own file under `a/issue/` and is referenced
-  from here.
+- **The native git-hook front end is required, not optional.** git 2.21 is a
+  fixed floor and the pre-commit framework cannot run there at all, so a plain
+  `.git/hooks/pre-commit` calling the console scripts directly is what covers
+  the floor. Framework support stays for consumers on git 2.31 and above.
+  Emulating the missing flag was investigated and declined; see
+  `a/doc/pre-commit-git-2.21-backport.md`.
+- **`tests/` is not 3.6.8-clean, and that is undecided.** `src/` was brought to
+  the floor, but `tests/test_packaging.py` and `tests/test_end_to_end.py` still
+  use `from __future__ import annotations`, PEP 585 generics and
+  `subprocess.run(capture_output=)`. The consequence is that the suite cannot
+  run on a RHEL 8.10 box, which is the environment the floor exists to serve.
+  Either bring the tests to the floor as well, or state deliberately that tests
+  are dev-interpreter-only and accept that the floor is verified by other
+  means.
+- **v0.2.0 deny-term resolution is designed but not built.** See
+  `a/doc/deny-term-resolution.md`. Suggested order: native front end first,
+  then `--explain` against the current single-file model as a v0.1.1, then the
+  resolution module with the tracked-private-file test written first.
+- Anything larger than a line gets its own file under `a/issue/` and is
+  referenced from here.

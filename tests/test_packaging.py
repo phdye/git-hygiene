@@ -15,6 +15,7 @@ so it is slow. Run it in CI and before tagging a release.
 
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -25,12 +26,41 @@ pytestmark = pytest.mark.packaging
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
+# The pre-commit framework calls `git ls-files -z --deduplicate`, and
+# --deduplicate arrived in git 2.31.0 (2021-03-15). Below that the
+# framework cannot start at all, so these tests skip: there is nothing
+# to exercise, not a failure to tolerate.
+#
+# This is NOT a statement that old git is out of scope. This project's
+# git floor is 2.21, matching RHEL 8.10, and that floor is covered by
+# the native git-hook front end, which calls the console scripts
+# directly and needs no framework. These tests cover the framework
+# path only, which is inherently a >= 2.31 concern.
+#
+# See a/doc/pre-commit-git-2.21-backport.md for why the missing flag is
+# not emulated even though it could be.
+MIN_GIT = (2, 31)
 
-def has_pre_commit() -> bool:
-    return shutil.which("pre-commit") is not None
+
+def git_version() -> tuple[int, ...]:
+    try:
+        out = subprocess.run(
+            ["git", "--version"], capture_output=True, text=True, check=False
+        ).stdout
+    except OSError:
+        return (0,)
+    m = re.search(r"(\d+)\.(\d+)", out)
+    return (int(m.group(1)), int(m.group(2))) if m else (0,)
 
 
-@pytest.mark.skipif(not has_pre_commit(), reason="pre-commit not installed")
+_found = ".".join(map(str, git_version()))
+needs_tooling = pytest.mark.skipif(
+    shutil.which("pre-commit") is None or git_version() < MIN_GIT,
+    reason=f"needs pre-commit and git >= {MIN_GIT[0]}.{MIN_GIT[1]} (found git {_found})",
+)
+
+
+@needs_tooling
 def test_hooks_file_is_valid() -> None:
     r = subprocess.run(
         ["pre-commit", "validate-manifest", str(REPO_ROOT / ".pre-commit-hooks.yaml")],
@@ -41,7 +71,7 @@ def test_hooks_file_is_valid() -> None:
     assert r.returncode == 0, r.stdout + r.stderr
 
 
-@pytest.mark.skipif(not has_pre_commit(), reason="pre-commit not installed")
+@needs_tooling
 def test_try_repo_installs_and_runs_the_content_hook(tmp_path: Path) -> None:
     """try-repo is the real test: it builds the hook environment from
     this repository exactly as a consumer would."""
