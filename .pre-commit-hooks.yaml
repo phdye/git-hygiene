@@ -1,0 +1,41 @@
+# The public interface of this repository. Hook ids are an API:
+# once a consumer pins `rev:` and names an id, renaming it breaks
+# their config. Treat additions as minor, changed args or exit
+# semantics as major.
+#
+# This file must be a plain list - minimum_pre_commit_version is a
+# per-hook key, not a top-level one.
+
+- id: deny-terms
+  name: no engagement identifiers in content
+  description: >-
+    Refuse staged content matching a term from ~/.config/git/deny-terms.txt.
+    Exits silently when that file is absent, so a clone without one is
+    unaffected.
+  entry: check-identifiers --staged
+  language: python
+  pass_filenames: false
+  always_run: true
+  minimum_pre_commit_version: "3.2.0"
+
+- id: deny-terms-msg
+  name: no engagement identifiers in commit message
+  description: >-
+    Same check, applied to the commit message. Message-only leaks are
+    real; content alone is not enough.
+  entry: check-identifiers --message
+  language: python
+  stages: [commit-msg]
+  minimum_pre_commit_version: "3.2.0"
+
+- id: audit-tree
+  name: audit whole repository for engagement identifiers
+  description: >-
+    Full-tree audit, not staged-only. Slow and not intended for every
+    commit - wire it to a manual stage or a pre-publish gate.
+  entry: audit-tree
+  language: python
+  pass_filenames: false
+  always_run: true
+  stages: [manual]
+  minimum_pre_commit_version: "3.2.0"

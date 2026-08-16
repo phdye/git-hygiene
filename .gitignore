@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+src/git_hygiene/_version.py
+
+# Virtual environment
+.venv/
+venv/
+
+# Testing
+.coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Never commit a term list. This is the one rule the whole project
+# exists to enforce - if one ever lands here, the tool has failed.
+deny-terms.txt
+*deny-terms*.txt
