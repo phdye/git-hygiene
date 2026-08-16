@@ -1,23 +1,25 @@
-"""Refuse content carrying an engagement identifier.
+"""Low-level primitives shared across git-hygiene: git plumbing, the
+term-file location convention, and the scan/report step that turns a
+resolved pattern set into pass/fail output.
 
-The terms live outside every repository, in a file this module reads
-at run time. Nothing here names one, so this code is safe to publish;
-the term list is not, and never should be - a denylist committed to a
-public repository publishes exactly what it conceals.
+Resolving *which* term files apply - the layered, classified model
+described in a/doc/deny-term-resolution.md - lives in resolution.py.
+This module stays beneath that: it does not know about layers,
+classes, or negation. It only knows how to run git, where the legacy
+single term file lives, and how to turn a list of already-resolved
+patterns into hits and a report.
 
     term file:  ~/.config/git/deny-terms.txt   (mode 0600)
                 one term per line, blank lines and # comments ignored
-                override with GIT_DENY_TERMS
+                overridden per XDG_CONFIG_HOME, see term_file() below
 
-Exits 0 and says nothing when the term file is absent. Anyone cloning
-a public repository will not have one, and this is a local safety net
-rather than a project requirement - it must never become a barrier to
-contribution.
-
-On a match it reports the file and line number but NOT the term that
-matched. Printing it would put the identifier into terminal
-scrollback, CI logs, and any pasted error report - reintroducing the
-leak this exists to prevent.
+On a match it reports the file and line number, and - since v0.2.0 -
+the term itself when the pattern's source is `public`. A term from a
+`private` source stays hidden unless the caller explicitly asks to see
+it. Printing an identifier from a public, already-tracked file
+discloses nothing; printing one from a private file would put it into
+terminal scrollback, CI logs, and any pasted error report - recreating
+the leak this project exists to prevent. See report() below.
 """
 
 import os
@@ -25,63 +27,99 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, Optional, Pattern
+from typing import List, NamedTuple, Optional
 
 DEFAULT_TERM_FILE = Path.home() / ".config" / "git" / "deny-terms.txt"
 
 
 def term_file() -> Path:
-    """Where the term list lives.
+    """Where the legacy/XDG term list lives - resolution.py's layer 2.
 
-    Path.home() is deliberate but worth understanding: on Windows it
-    is the user profile, which is NOT the same directory as a Cygwin
-    or MSYS shell's ~. When those disagree, set GIT_DENY_TERMS - the
-    failure mode otherwise is finding no terms and passing everything,
-    which reads as success.
+    Checked in order: $XDG_CONFIG_HOME/git/deny-terms.txt, else
+    ~/.config/git/deny-terms.txt. Path.home() is deliberate but worth
+    understanding: on Windows it is the user profile, which is NOT the
+    same directory as a Cygwin or MSYS shell's ~. Set XDG_CONFIG_HOME
+    explicitly when those disagree - the failure mode otherwise is
+    finding no terms and passing everything, which reads as success.
     """
-    override = os.environ.get("GIT_DENY_TERMS")
-    return Path(override) if override else DEFAULT_TERM_FILE
+    xdg = os.environ.get("XDG_CONFIG_HOME")
+    if xdg:
+        return Path(xdg) / "git" / "deny-terms.txt"
+    return DEFAULT_TERM_FILE
 
 
-def load_patterns(path: Optional[Path] = None) -> List[Pattern[str]]:
-    path = path or term_file()
-    if not path.is_file():
-        return []
-    patterns = []
-    for raw in path.read_text(encoding="utf-8").splitlines():
-        term = raw.strip()
-        if not term or term.startswith("#"):
-            continue
-        # Word boundaries, so a term does not match inside an unrelated
-        # longer word. Without this you get false positives on ordinary
-        # API names, and a guard that cries wolf gets switched off.
-        patterns.append(re.compile(rf"\b{re.escape(term)}\b", re.IGNORECASE))
-    return patterns
+class TermPattern(NamedTuple):
+    """One compiled term, with the provenance that governs whether a
+    match against it may be printed."""
+
+    regex: "re.Pattern[str]"
+    term: str
+    source: Path
+    klass: str  # "public" | "private"
 
 
-def scan_text(text: str, patterns: List[Pattern[str]], label: str) -> List[str]:
-    """Locations of matching lines. Location only - never the term."""
-    problems = []
+class Hit(NamedTuple):
+    """One matching line. Always safe to hold in memory and pass
+    around; report() is the only place that decides what may reach a
+    stream, and it does so per hit from `klass` and `term`."""
+
+    location: str  # "label:lineno"
+    term: str
+    source: Path
+    klass: str
+
+
+def compile_term(term: str, source: Path, klass: str) -> TermPattern:
+    # Word boundaries, so a term does not match inside an unrelated
+    # longer word. Without this you get false positives on ordinary
+    # API names, and a guard that cries wolf gets switched off.
+    regex = re.compile(r"\b" + re.escape(term) + r"\b", re.IGNORECASE)
+    return TermPattern(regex=regex, term=term, source=source, klass=klass)
+
+
+def scan_text(text: str, patterns: List[TermPattern], label: str) -> List[Hit]:
+    """Locations of matching lines, one Hit per line even when several
+    patterns match it - the first pattern to match a line wins, same
+    as the pre-v0.2.0 behavior of reporting a line once."""
+    hits = []
     for lineno, line in enumerate(text.splitlines(), start=1):
         for pattern in patterns:
-            if pattern.search(line):
-                problems.append(f"  {label}:{lineno}")
+            if pattern.regex.search(line):
+                hits.append(
+                    Hit(
+                        location=f"{label}:{lineno}",
+                        term=pattern.term,
+                        source=pattern.source,
+                        klass=pattern.klass,
+                    )
+                )
                 break
-    return problems
+    return hits
 
 
-def report(problems: List[str], scope: str) -> int:
-    if not problems:
+def report(
+    hits: List[Hit],
+    scope: str,
+    show_private: bool = False,
+    show_terms: bool = True,
+) -> int:
+    if not hits:
         return 0
-    sys.stderr.write(
-        f"\nBLOCKED: {scope} matches a denylisted identifier.\n"
-        "The term is deliberately not printed - see your term file.\n\n"
-    )
-    for p in problems:
-        sys.stderr.write(p + "\n")
+    sys.stderr.write(f"\nBLOCKED: {scope} matches a denylisted identifier.\n")
+    for hit in hits:
+        printable = show_terms and (hit.klass == "public" or show_private)
+        if printable:
+            sys.stderr.write(f"  {hit.location}  [{hit.term}]\n")
+        else:
+            sys.stderr.write(f"  {hit.location}\n")
+    if not show_terms or any(h.klass == "private" and not show_private for h in hits):
+        sys.stderr.write(
+            "\nOne or more matches are from a private term source and are not "
+            "shown - pass --show-private-terms to see them.\n"
+        )
     sys.stderr.write(
         "\nRemove the identifier, or if this is a false positive, "
-        "narrow the term in the term file.\n\n"
+        "narrow the term in its term file.\n\n"
     )
     return 1
 
@@ -99,3 +137,28 @@ def git(*args: str, cwd: Optional[Path] = None) -> "subprocess.CompletedProcess[
         stderr=subprocess.PIPE,
         check=False,
     )
+
+
+def git_dir(repo: Path) -> Optional[Path]:
+    """The repository's git directory, resolved the way git itself
+    would - so a worktree, or a repo reached through a symlink chain,
+    lands on the right .git regardless of where the on-disk `.git`
+    entry actually points."""
+    out = git("rev-parse", "--git-dir", cwd=repo)
+    if out.returncode != 0:
+        return None
+    rel = out.stdout.decode("utf-8", "replace").strip()
+    if not rel:
+        return None
+    path = Path(rel)
+    return path if path.is_absolute() else repo / path
+
+
+def git_toplevel(start: Optional[Path] = None) -> Optional[Path]:
+    """The work tree root, or None outside one. resolution.py's
+    anchor - see a/doc/deny-term-resolution.md, "Resolve once"."""
+    out = git("rev-parse", "--show-toplevel", cwd=start)
+    if out.returncode != 0:
+        return None
+    text = out.stdout.decode("utf-8", "replace").strip()
+    return Path(text) if text else None

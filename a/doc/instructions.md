@@ -270,9 +270,19 @@ though the rhel-root rule and the path facts above still do.
   its own portable `check-identifiers` shim from `sys.executable` rather than
   assuming `pip install -e .` was run, so it passed there too without any
   package installed under that interpreter.
-- **v0.2.0 deny-term resolution is designed but not built.** See
-  `a/doc/deny-term-resolution.md`. Suggested order: native front end first,
-  then `--explain` against the current single-file model as a v0.1.1, then the
-  resolution module with the tracked-private-file test written first.
+- **v0.2.0 deny-term resolution is built.** `src/git_hygiene/resolution.py`
+  implements the layered, classified model in `a/doc/deny-term-resolution.md`;
+  `terms.py` is now primitives beneath it (`compile_term`, `scan_text`,
+  `report`, git helpers) and carries no layering knowledge. One deliberate
+  deviation from the design, recorded at the top of that doc: loud-absence
+  applies only to explicitly named sources, since making the auto-probed
+  repo-root `.deny-terms` fatal would block every commit in every repo that
+  lacks one. 47 tests pass under the rhel root's Python 3.6.9, and
+  `--explain`, class-aware printing and `--show-private-terms` were each
+  driven by hand against a real repo there. Still to do before tagging:
+  `--no-inherit`/`--no-walk`/`--walk-to` have tests but no hand-verification,
+  `audit-tree --objects` performance against a large history remains
+  unmeasured (a pre-existing gap, now with more per-hit work), and
+  `.pre-commit-hooks.yaml` descriptions still describe the v0.1 behavior.
 - Anything larger than a line gets its own file under `a/issue/` and is
   referenced from here.

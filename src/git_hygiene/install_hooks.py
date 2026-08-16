@@ -27,7 +27,7 @@ import sys
 from pathlib import Path
 from typing import Dict, List, NamedTuple, Optional
 
-from .terms import git
+from .terms import git_dir
 
 MARKER = "# managed-by: git-hygiene install-hooks -- do not edit; reinstall to update"
 
@@ -53,20 +53,6 @@ HOOKS: Dict[str, str] = {
 class Result(NamedTuple):
     line: str
     ok: bool
-
-
-def git_dir(repo: Path) -> Optional[Path]:
-    """The repository's git directory, resolved the way git itself
-    would - so a worktree or a repo found via .primary-style symlinks
-    lands on the right hooks/ regardless of where .git points."""
-    out = git("rev-parse", "--git-dir", cwd=repo)
-    if out.returncode != 0:
-        return None
-    rel = out.stdout.decode("utf-8", "replace").strip()
-    if not rel:
-        return None
-    path = Path(rel)
-    return path if path.is_absolute() else repo / path
 
 
 def render(hook_name: str) -> str:

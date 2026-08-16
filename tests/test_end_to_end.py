@@ -46,6 +46,10 @@ def repo(tmp_path):
 @pytest.fixture
 def terms(tmp_path, monkeypatch):
     # type: (Path, pytest.MonkeyPatch) -> Path
+    # v0.2.0's resolver always also checks the XDG/config layer,
+    # independent of GIT_DENY_TERMS - isolate it so a real personal
+    # term file on the machine running these tests cannot leak in.
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "no-xdg-here"))
     path = tmp_path / "deny-terms.txt"
     path.write_text("blockedname\n", encoding="utf-8")
     monkeypatch.setenv("GIT_DENY_TERMS", str(path))
@@ -82,6 +86,7 @@ def test_scans_staged_blob_not_working_tree(repo, terms, monkeypatch):
 
 def test_no_term_file_passes_silently(repo, monkeypatch, capsys):
     # type: (Path, pytest.MonkeyPatch, object) -> None
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(repo / "no-xdg-here"))
     monkeypatch.setenv("GIT_DENY_TERMS", str(repo / "absent.txt"))
     (repo / "bad.md").write_text("has blockedname\n", encoding="utf-8")
     git("add", "bad.md", cwd=repo)

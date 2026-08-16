@@ -9,6 +9,11 @@ Scanning the object store rather than just HEAD is the point: a term
 removed from the working tree survives in history until the history
 itself is rewritten, and `git log -S` alone will not show it in a
 deleted blob.
+
+Term resolution is layered and classified as of v0.2.0 - see
+a/doc/deny-term-resolution.md. The resolution summary always prints,
+even without --explain: this is a pre-publish gate, and whether it
+audited against zero terms is the entire question being asked of it.
 """
 
 import argparse
@@ -16,7 +21,8 @@ import sys
 from pathlib import Path
 from typing import List, Optional
 
-from .terms import git, load_patterns, scan_text
+from . import resolution
+from .terms import Hit, git, scan_text
 
 
 def tracked_files(repo: Path) -> List[str]:
@@ -47,15 +53,60 @@ def main(argv: Optional[List[str]] = None) -> int:
         action="store_true",
         help="also scan every git object, including unreachable history (slow)",
     )
+    parser.add_argument(
+        "--terms", action="append", metavar="FILE", help="explicit term source, repeatable"
+    )
+    parser.add_argument(
+        "--no-inherit",
+        action="store_true",
+        help="use only the highest explicit source (--terms, else GIT_DENY_TERMS)",
+    )
+    parser.add_argument("--no-walk", action="store_true", help="skip the ancestor walk")
+    parser.add_argument("--walk-to", metavar="DIR", help="bound the ancestor walk")
+    parser.add_argument(
+        "--show-private-terms",
+        action="store_true",
+        help="also print matched terms from private sources",
+    )
+    parser.add_argument(
+        "--no-show-terms",
+        action="store_true",
+        help="suppress all term printing; locations only",
+    )
+    parser.add_argument(
+        "--explain",
+        action="store_true",
+        help="print the full term resolution, not just its summary",
+    )
     args = parser.parse_args(argv)
     repo = Path(args.repo).resolve()
 
-    patterns = load_patterns()
-    if not patterns:
-        sys.stderr.write("No term file found - nothing to audit against. See GIT_DENY_TERMS.\n")
+    result = resolution.resolve(
+        anchor=repo,
+        extra_terms=args.terms,
+        no_inherit=args.no_inherit,
+        no_walk=args.no_walk,
+        walk_to=args.walk_to,
+    )
+
+    if args.explain:
+        for line in resolution.explain_lines(result):
+            print(line)
+    else:
+        print(resolution.explain_lines(result)[-1])  # the summary line, unconditionally
+
+    if result.fatal:
+        sys.stderr.write("\nFAIL - term resolution failed:\n\n")
+        for error in result.errors:
+            sys.stderr.write("  " + error + "\n")
+        sys.stderr.write("\nNothing was scanned. Run with --explain for the full resolution.\n\n")
+        return 1
+
+    if not result.patterns:
+        sys.stderr.write("No term resolved - nothing to audit against. See --explain.\n")
         return 0
 
-    problems: List[str] = []
+    hits: List[Hit] = []
 
     files = tracked_files(repo)
     for rel in files:
@@ -64,31 +115,35 @@ def main(argv: Optional[List[str]] = None) -> int:
             text = path.read_text(encoding="utf-8", errors="replace")
         except OSError:
             continue
-        problems += scan_text(text, patterns, rel)
+        hits += scan_text(text, result.patterns, rel)
 
     log = git("log", "--all", "--format=%H%n%B", cwd=repo)
-    problems += scan_text(log.stdout.decode("utf-8", "replace"), patterns, "commit messages")
+    hits += scan_text(log.stdout.decode("utf-8", "replace"), result.patterns, "commit messages")
 
     scanned_objects = 0
     if args.objects:
         for oid in all_object_ids(repo):
             blob = git("cat-file", "-p", oid, cwd=repo).stdout
             text = blob.decode("utf-8", "replace")
-            hits = scan_text(text, patterns, f"object {oid[:10]}")
-            problems += hits
+            hits += scan_text(text, result.patterns, f"object {oid[:10]}")
             scanned_objects += 1
 
     print(f"tracked files scanned: {len(files)}")
     print(f"git objects scanned:   {scanned_objects}")
 
-    if problems:
+    if hits:
         sys.stderr.write("\nFAIL - identifiers present:\n\n")
-        for p in problems:
-            sys.stderr.write(p + "\n")
+        show_terms = not args.no_show_terms
+        for hit in hits:
+            printable = show_terms and (hit.klass == "public" or args.show_private_terms)
+            if printable:
+                sys.stderr.write(f"  {hit.location}  [{hit.term}]\n")
+            else:
+                sys.stderr.write(f"  {hit.location}\n")
         sys.stderr.write(
-            "\nLocations only; terms are not printed. Note that removing a "
-            "term from the working tree does not remove it from history - "
-            "that needs the history itself rewritten.\n\n"
+            "\nA private-source term is withheld unless --show-private-terms is "
+            "given. Note that removing a term from the working tree does not "
+            "remove it from history - that needs the history itself rewritten.\n\n"
         )
         return 1
 

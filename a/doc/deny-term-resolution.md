@@ -1,9 +1,25 @@
 # Deny term resolution: layered sources, classification, and merge
 
-Status: proposal. Written 2026-08-16. Supersedes the single-file model in
-`src/git_hygiene/terms.py` (`DEFAULT_TERM_FILE`, `GIT_DENY_TERMS` as one path).
-Targets v0.2.0, which is a major behavioral change under the project's own
-versioning policy.
+Status: **implemented**, 2026-08-16, in `src/git_hygiene/resolution.py` with
+`terms.py` reduced to primitives beneath it. Proposal written the same day;
+this document was the design and remains the authority on *why*. Targets
+v0.2.0, a major behavioral change under the project's own versioning policy.
+
+One deliberate deviation from the proposal below, made during
+implementation. The "source file absent" row of the class table says a
+missing public source fails loudly. As written that would make the
+repo-root `.deny-terms` layer fatal in every repository that does not have
+one, which is nearly all of them - it would break `check-identifiers` on
+every commit everywhere, the opposite of the "a check they cannot see must
+never block their work" rule this project is built on. The loud-absence
+rule therefore applies only to a source the operator *explicitly named*
+(`--terms`, `GIT_DENY_TERMS`); every auto-probed layer stays silently
+absent. Tested both ways in `tests/test_resolution.py`.
+
+Verified under the RHEL 8.10 floor, not just the dev interpreter: 47 tests
+pass under the rhel root's Python 3.6.9, and `--explain`, class-aware
+printing, and `--show-private-terms` were each exercised by hand against a
+real repository there.
 
 ## Why
 
