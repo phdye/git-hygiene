@@ -251,10 +251,13 @@ though the rhel-root rule and the path facts above still do.
   its own files so a foreign hook is left alone without `--force`, and
   supports `--dry-run` and `--uninstall`. Verified against a real commit under
   both Cygwin git 2.21 (rhel root) and Git for Windows - a term match blocks
-  the commit, clean content does not. Not yet pushed for CI to prove the
-  packaging side (the console-script entry point resolving from an installed
-  wheel), matching the caution in `a/doc/rejected-pre-commit-git-2.21-backport.md`
-  about `try-repo` never having been proven here either.
+  the commit, clean content does not. **Packaging now proven, not just
+  claimed:** pushed to `https://github.com/phdye/git-hygiene` (public,
+  created 2026-08-16) and CI run #1 on `7182367` passed clean - lint,
+  `packaging` (the `pre-commit try-repo` job that has never once succeeded
+  locally, per `a/doc/rejected-pre-commit-git-2.21-backport.md` and the
+  `core.worktree` finding in `a/issue/`), and the full test matrix across
+  Python 3.9 through 3.13. `origin` is now this repo over SSH.
 - **`tests/` is now 3.6.8-clean, decided and done.** No `from __future__
   import annotations`, no runtime PEP 585/604 generics, no
   `capture_output=`/`text=` (3.7+ only) - type comments and explicit
