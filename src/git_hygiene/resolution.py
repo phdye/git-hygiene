@@ -139,10 +139,12 @@ def _trusted(path: Path) -> Tuple[bool, str]:
         return False, "unreadable"
     if st.st_mode & stat.S_IWOTH:
         return False, "world writable"
-    # os.getuid is POSIX-only and the `os.name` guard above already
-    # rules out Windows, but mypy checks against the platform it runs
-    # on - which here is Windows - so it cannot see that.
-    if st.st_uid not in (os.getuid(), 0):  # type: ignore[attr-defined]
+    # os.getuid is POSIX-only, and the os.name guard above already rules
+    # out Windows. mypy is told to target linux (see pyproject.toml) so
+    # this needs no suppression - an ignore here would be correct under
+    # a Windows-run mypy and an unused-ignore error under a Linux-run
+    # one, which is a property of the checker's host, not of this code.
+    if st.st_uid not in (os.getuid(), 0):
         return False, "not owned by the invoking user or root"
     return True, ""
 
