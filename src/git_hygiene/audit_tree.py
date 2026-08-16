@@ -11,21 +11,20 @@ itself is rewritten, and `git log -S` alone will not show it in a
 deleted blob.
 """
 
-from __future__ import annotations
-
 import argparse
 import sys
 from pathlib import Path
+from typing import List, Optional
 
 from .terms import git, load_patterns, scan_text
 
 
-def tracked_files(repo: Path) -> list[str]:
+def tracked_files(repo: Path) -> List[str]:
     out = git("ls-files", cwd=repo)
     return [f for f in out.stdout.decode("utf-8", "replace").splitlines() if f.strip()]
 
 
-def all_object_ids(repo: Path) -> list[str]:
+def all_object_ids(repo: Path) -> List[str]:
     out = git("cat-file", "--batch-all-objects", "--batch-check", cwd=repo)
     ids = []
     for line in out.stdout.decode("utf-8", "replace").splitlines():
@@ -35,7 +34,7 @@ def all_object_ids(repo: Path) -> list[str]:
     return ids
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
             "Audit a repository's tracked files, commit messages and git "
@@ -56,7 +55,7 @@ def main(argv: list[str] | None = None) -> int:
         sys.stderr.write("No term file found - nothing to audit against. See GIT_DENY_TERMS.\n")
         return 0
 
-    problems: list[str] = []
+    problems: List[str] = []
 
     files = tracked_files(repo)
     for rel in files:

@@ -20,13 +20,12 @@ scrollback, CI logs, and any pasted error report - reintroducing the
 leak this exists to prevent.
 """
 
-from __future__ import annotations
-
 import os
 import re
 import subprocess
 import sys
 from pathlib import Path
+from typing import List, Optional, Pattern
 
 DEFAULT_TERM_FILE = Path.home() / ".config" / "git" / "deny-terms.txt"
 
@@ -44,7 +43,7 @@ def term_file() -> Path:
     return Path(override) if override else DEFAULT_TERM_FILE
 
 
-def load_patterns(path: Path | None = None) -> list[re.Pattern[str]]:
+def load_patterns(path: Optional[Path] = None) -> List[Pattern[str]]:
     path = path or term_file()
     if not path.is_file():
         return []
@@ -60,7 +59,7 @@ def load_patterns(path: Path | None = None) -> list[re.Pattern[str]]:
     return patterns
 
 
-def scan_text(text: str, patterns: list[re.Pattern[str]], label: str) -> list[str]:
+def scan_text(text: str, patterns: List[Pattern[str]], label: str) -> List[str]:
     """Locations of matching lines. Location only - never the term."""
     problems = []
     for lineno, line in enumerate(text.splitlines(), start=1):
@@ -71,7 +70,7 @@ def scan_text(text: str, patterns: list[re.Pattern[str]], label: str) -> list[st
     return problems
 
 
-def report(problems: list[str], scope: str) -> int:
+def report(problems: List[str], scope: str) -> int:
     if not problems:
         return 0
     sys.stderr.write(
@@ -87,10 +86,16 @@ def report(problems: list[str], scope: str) -> int:
     return 1
 
 
-def git(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[bytes]:
-    return subprocess.run(  # noqa: S603
+def git(*args: str, cwd: Optional[Path] = None) -> "subprocess.CompletedProcess[bytes]":
+    # stdout/stderr spelled out rather than capture_output=True: that
+    # kwarg is 3.7+ only, and the floor here is 3.6.8 to match RHEL 8.10.
+    # ruff's oldest target-version is py37 (no py36 exists), so UP022
+    # fires suggesting capture_output even though it would break the
+    # real floor - suppressed rather than silently regressed.
+    return subprocess.run(  # noqa: S603, UP022
         ["git", *args],  # noqa: S607 - resolved from PATH, as git tooling does
         cwd=cwd,
-        capture_output=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         check=False,
     )
