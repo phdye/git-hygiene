@@ -1,9 +1,12 @@
 """The native hook front end: install-hooks writes plain
 `.git/hooks/` shims that need no `pre-commit` framework, and that is
 the path this project's own git 2.21 floor depends on.
-"""
 
-from __future__ import annotations
+Kept 3.6.8-clean like the rest of tests/ - see a/doc/instructions.md.
+No `from __future__ import annotations`, no runtime
+`subprocess.CompletedProcess[str]` subscript (a type comment instead),
+no `capture_output=` (3.7+).
+"""
 
 import os
 import subprocess
@@ -14,13 +17,27 @@ import pytest
 
 from git_hygiene import install_hooks
 
+SRC_ROOT = str(Path(__file__).resolve().parent.parent / "src")
 
-def git(*args: str, cwd: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, check=False)
+
+def git(*args, cwd):
+    # type: (str, Path) -> subprocess.CompletedProcess[str]
+    # stdout/stderr spelled out rather than capture_output=/text=: both
+    # are 3.7+ only, and the floor here is 3.6.8 to match RHEL 8.10 -
+    # same reasoning as git_hygiene.terms.git().
+    return subprocess.run(  # noqa: UP022
+        ["git"] + list(args),
+        cwd=str(cwd),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        universal_newlines=True,  # noqa: UP021 - text= is also 3.7+ only
+        check=False,
+    )
 
 
 @pytest.fixture
-def repo(tmp_path: Path) -> Path:
+def repo(tmp_path):
+    # type: (Path) -> Path
     r = tmp_path / "repo"
     r.mkdir()
     git("init", "-q", cwd=r)
@@ -31,14 +48,16 @@ def repo(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def terms(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+def terms(tmp_path, monkeypatch):
+    # type: (Path, pytest.MonkeyPatch) -> Path
     path = tmp_path / "deny-terms.txt"
     path.write_text("blockedname\n", encoding="utf-8")
     monkeypatch.setenv("GIT_DENY_TERMS", str(path))
     return path
 
 
-def test_writes_both_hooks_executable(repo: Path) -> None:
+def test_writes_both_hooks_executable(repo):
+    # type: (Path) -> None
     # The exec bit itself is only meaningful where the filesystem
     # tracks POSIX permissions - NTFS via native Windows Python does
     # not, even though os.chmod() there raises nothing. Content and
@@ -48,11 +67,12 @@ def test_writes_both_hooks_executable(repo: Path) -> None:
         target = repo / ".git" / "hooks" / name
         assert target.is_file()
         if os.name == "posix":
-            assert target.stat().st_mode & 0o111, f"{name} is not executable"
+            assert target.stat().st_mode & 0o111, name + " is not executable"
         assert install_hooks.MARKER in target.read_text(encoding="utf-8")
 
 
-def test_idempotent_reinstall(repo: Path) -> None:
+def test_idempotent_reinstall(repo):
+    # type: (Path) -> None
     assert install_hooks.main([str(repo)]) == 0
     first = (repo / ".git" / "hooks" / "pre-commit").read_text(encoding="utf-8")
     assert install_hooks.main([str(repo)]) == 0
@@ -60,13 +80,15 @@ def test_idempotent_reinstall(repo: Path) -> None:
     assert first == second
 
 
-def test_dry_run_writes_nothing(repo: Path) -> None:
+def test_dry_run_writes_nothing(repo):
+    # type: (Path) -> None
     assert install_hooks.main([str(repo), "--dry-run"]) == 0
     assert not (repo / ".git" / "hooks" / "pre-commit").exists()
     assert not (repo / ".git" / "hooks" / "commit-msg").exists()
 
 
-def test_foreign_hook_is_not_clobbered(repo: Path) -> None:
+def test_foreign_hook_is_not_clobbered(repo):
+    # type: (Path) -> None
     hooks_dir = repo / ".git" / "hooks"
     hooks_dir.mkdir(parents=True, exist_ok=True)
     foreign = hooks_dir / "pre-commit"
@@ -79,7 +101,8 @@ def test_foreign_hook_is_not_clobbered(repo: Path) -> None:
     assert install_hooks.MARKER in foreign.read_text(encoding="utf-8")
 
 
-def test_uninstall_removes_only_managed_hooks(repo: Path) -> None:
+def test_uninstall_removes_only_managed_hooks(repo):
+    # type: (Path) -> None
     hooks_dir = repo / ".git" / "hooks"
     hooks_dir.mkdir(parents=True, exist_ok=True)
     foreign = hooks_dir / "commit-msg"
@@ -91,7 +114,8 @@ def test_uninstall_removes_only_managed_hooks(repo: Path) -> None:
     assert not (hooks_dir / "commit-msg").exists()
 
 
-def test_uninstall_leaves_foreign_hook_alone(repo: Path) -> None:
+def test_uninstall_leaves_foreign_hook_alone(repo):
+    # type: (Path) -> None
     hooks_dir = repo / ".git" / "hooks"
     hooks_dir.mkdir(parents=True, exist_ok=True)
     foreign = hooks_dir / "pre-commit"
@@ -102,34 +126,55 @@ def test_uninstall_leaves_foreign_hook_alone(repo: Path) -> None:
     assert "foreign" in foreign.read_text(encoding="utf-8")
 
 
-def test_non_repository_reports_error(tmp_path: Path) -> None:
+def test_non_repository_reports_error(tmp_path):
+    # type: (Path) -> None
     not_a_repo = tmp_path / "not-a-repo"
     not_a_repo.mkdir()
     assert install_hooks.main([str(not_a_repo)]) == 1
 
 
-def test_installed_hook_actually_blocks_a_commit(repo: Path, terms: Path) -> None:
+def _make_check_identifiers_shim(bin_dir):
+    # type: (Path) -> None
+    """A portable stand-in for the installed console script, so this
+    test needs nothing beyond the interpreter already running it - not
+    a `pip install -e .`, which may not have been done (it has not, on
+    the rhel root's Python, by design - see a/doc/instructions.md on
+    that interpreter's floor being fixed at 3.6.9). Forward slashes in
+    the interpreter path so the shim also runs under Git for Windows'
+    bundled bash, which invokes any shebang-bearing file in
+    .git/hooks/ through its own sh regardless of the NTFS exec bit."""
+    shim = bin_dir / "check-identifiers"
+    interpreter = sys.executable.replace("\\", "/")
+    body = '#!/usr/bin/env bash\nexec "{}" -m git_hygiene.check_identifiers "$@"\n'
+    shim.write_text(body.format(interpreter), encoding="utf-8")
+    shim.chmod(0o755)
+
+
+def test_installed_hook_actually_blocks_a_commit(repo, terms, tmp_path):
+    # type: (Path, Path, Path) -> None
     """The real proof: git itself, not this package, invoking the hook
     it was pointed at. Git for Windows runs a shebang-line hook through
     its own bundled sh regardless of the NTFS exec bit; Cygwin and
     other POSIX gits honor the exec bit directly - either way this is
-    the same shim file exercised the same way a real commit would.
-    check-identifiers must be reachable on PATH for the shim to find
-    it - the running interpreter's own bin/Scripts directory is added
-    defensively in case the test runner was not launched with it
-    already active."""
+    the same shim file exercised the same way a real commit would."""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    _make_check_identifiers_shim(bin_dir)
+
     env = dict(os.environ)
-    env["PATH"] = os.pathsep.join([str(Path(sys.executable).parent), env.get("PATH", "")])
+    env["PATH"] = os.pathsep.join([str(bin_dir), env.get("PATH", "")])
+    env["PYTHONPATH"] = os.pathsep.join([SRC_ROOT, env.get("PYTHONPATH", "")])
 
     assert install_hooks.main([str(repo)]) == 0
 
     (repo / "bad.md").write_text("has blockedname\n", encoding="utf-8")
     git("add", "bad.md", cwd=repo)
-    r = subprocess.run(
+    r = subprocess.run(  # noqa: UP022
         ["git", "commit", "-q", "-m", "add a file"],
-        cwd=repo,
-        capture_output=True,
-        text=True,
+        cwd=str(repo),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        universal_newlines=True,  # noqa: UP021 - text= is also 3.7+ only
         env=env,
         check=False,
     )

@@ -1,7 +1,5 @@
 """Unit tests for term loading and scanning."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 from git_hygiene.terms import load_patterns, report, scan_text

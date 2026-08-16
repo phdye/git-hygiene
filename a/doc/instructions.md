@@ -255,17 +255,18 @@ though the rhel-root rule and the path facts above still do.
   packaging side (the console-script entry point resolving from an installed
   wheel), matching the caution in `a/doc/rejected-pre-commit-git-2.21-backport.md`
   about `try-repo` never having been proven here either.
-- **`tests/` is not 3.6.8-clean, and that is undecided.** `src/` was brought to
-  the floor, but `tests/test_packaging.py` and `tests/test_end_to_end.py` still
-  use `from __future__ import annotations`, PEP 585 generics and
-  `subprocess.run(capture_output=)`. The consequence is that the suite cannot
-  run on a RHEL 8.10 box, which is the environment the floor exists to serve.
-  Either bring the tests to the floor as well, or state deliberately that tests
-  are dev-interpreter-only and accept that the floor is verified by other
-  means. `tests/test_install_hooks.py` follows the same existing convention
-  and has the same gap - `install_hooks.py` itself was checked separately with
-  `python3 -m py_compile` under the rhel root's 3.6.9, which is what actually
-  stands in for this decision until it is made project-wide.
+- **`tests/` is now 3.6.8-clean, decided and done.** No `from __future__
+  import annotations`, no runtime PEP 585/604 generics, no
+  `capture_output=`/`text=` (3.7+ only) - type comments and explicit
+  `stdout`/`stderr`/`universal_newlines=` in their place, matching how
+  `git_hygiene.terms.git()` already handled this in `src/`. Proven, not just
+  compiled: `PYTHONPATH=src python3 -m pytest tests` under the rhel root's
+  Python 3.6.9 with its pinned pytest 4.6.11 - 27 passed, 2 skipped (the
+  packaging tests, correctly, since that path needs pre-commit and git >=
+  2.31 by design). `test_installed_hook_actually_blocks_a_commit` now builds
+  its own portable `check-identifiers` shim from `sys.executable` rather than
+  assuming `pip install -e .` was run, so it passed there too without any
+  package installed under that interpreter.
 - **v0.2.0 deny-term resolution is designed but not built.** See
   `a/doc/deny-term-resolution.md`. Suggested order: native front end first,
   then `--explain` against the current single-file model as a v0.1.1, then the

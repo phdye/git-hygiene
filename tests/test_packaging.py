@@ -11,9 +11,16 @@ an installed hook. That is exactly the gap this closes.
 
 Marked `packaging` and deselected by default: it builds a virtualenv,
 so it is slow. Run it in CI and before tagging a release.
-"""
 
-from __future__ import annotations
+Kept 3.6.8-clean like the rest of tests/ - see a/doc/instructions.md.
+No `from __future__ import annotations`, no runtime `tuple[int, ...]`
+(a 3.9+ subscript; given as a type comment instead), no
+`capture_output=` (3.7+). These tests skip themselves below the git
+floor they need regardless (MIN_GIT), so this is about the test file
+being importable and collectible on 3.6.8, not about the packaging
+path itself working there - it can't, by design; see the module this
+mirrors, a/doc/rejected-pre-commit-git-2.21-backport.md.
+"""
 
 import re
 import shutil
@@ -42,10 +49,17 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 MIN_GIT = (2, 31)
 
 
-def git_version() -> tuple[int, ...]:
+def git_version():
+    # type: () -> tuple
     try:
-        out = subprocess.run(
-            ["git", "--version"], capture_output=True, text=True, check=False
+        # stdout/stderr spelled out rather than capture_output=/text=:
+        # both are 3.7+ only, and the floor here is 3.6.8.
+        out = subprocess.run(  # noqa: UP022
+            ["git", "--version"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,  # noqa: UP021 - text= is also 3.7+ only
+            check=False,
         ).stdout
     except OSError:
         return (0,)
@@ -53,7 +67,7 @@ def git_version() -> tuple[int, ...]:
     return (int(m.group(1)), int(m.group(2))) if m else (0,)
 
 
-_found = ".".join(map(str, git_version()))
+_found = ".".join(str(part) for part in git_version())
 needs_tooling = pytest.mark.skipif(
     shutil.which("pre-commit") is None or git_version() < MIN_GIT,
     reason=f"needs pre-commit and git >= {MIN_GIT[0]}.{MIN_GIT[1]} (found git {_found})",
@@ -61,31 +75,35 @@ needs_tooling = pytest.mark.skipif(
 
 
 @needs_tooling
-def test_hooks_file_is_valid() -> None:
-    r = subprocess.run(
+def test_hooks_file_is_valid():
+    # type: () -> None
+    r = subprocess.run(  # noqa: UP022
         ["pre-commit", "validate-manifest", str(REPO_ROOT / ".pre-commit-hooks.yaml")],
-        capture_output=True,
-        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        universal_newlines=True,  # noqa: UP021 - text= is also 3.7+ only
         check=False,
     )
     assert r.returncode == 0, r.stdout + r.stderr
 
 
 @needs_tooling
-def test_try_repo_installs_and_runs_the_content_hook(tmp_path: Path) -> None:
+def test_try_repo_installs_and_runs_the_content_hook(tmp_path):
+    # type: (Path) -> None
     """try-repo is the real test: it builds the hook environment from
     this repository exactly as a consumer would."""
     target = tmp_path / "consumer"
     target.mkdir()
-    subprocess.run(["git", "init", "-q"], cwd=target, check=True)
+    subprocess.run(["git", "init", "-q"], cwd=str(target), check=True)
     (target / "file.md").write_text("ordinary content\n", encoding="utf-8")
-    subprocess.run(["git", "add", "file.md"], cwd=target, check=True)
+    subprocess.run(["git", "add", "file.md"], cwd=str(target), check=True)
 
-    r = subprocess.run(
+    r = subprocess.run(  # noqa: UP022
         ["pre-commit", "try-repo", str(REPO_ROOT), "deny-terms", "--all-files"],
-        cwd=target,
-        capture_output=True,
-        text=True,
+        cwd=str(target),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        universal_newlines=True,  # noqa: UP021 - text= is also 3.7+ only
         check=False,
     )
     # No term file in this environment, so the hook must pass - but it
