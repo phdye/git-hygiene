@@ -49,6 +49,25 @@ your repository will not have one, and a check they cannot see must
 never block their work. It is a local safety net, not a project
 requirement.
 
+## Use without `pre-commit`
+
+`pre-commit` needs git 2.31 or newer (it calls `git ls-files
+--deduplicate`). If your git is older - RHEL 8.10 ships 2.21 - install
+the hooks directly instead, with no framework involved:
+
+```bash
+pip install git-hygiene
+install-hooks             # writes .git/hooks/pre-commit and commit-msg
+```
+
+Each installed hook is a small shell shim that calls `check-identifiers`
+on PATH, so it needs the package installed somewhere that shim can find
+it, but nothing else. Re-running `install-hooks` is safe - it reseeds
+its own hook files and leaves anything it did not install alone unless
+you pass `--force`. `install-hooks --dry-run` shows what would change
+without writing, and `install-hooks --uninstall` removes only the hooks
+this tool manages.
+
 ## Hooks
 
 | id | stage | what it does |

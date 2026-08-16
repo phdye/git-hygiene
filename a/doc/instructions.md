@@ -132,7 +132,7 @@ the interpreter's — do not read it as a Cygwin Python requirement.
 
 | Path | Holds |
 |---|---|
-| `src/git_hygiene/` | the library: term loading, scanning, reporting, the two console scripts. |
+| `src/git_hygiene/` | the library: term loading, scanning, reporting, and the three console scripts (`check-identifiers`, `audit-tree`, `install-hooks`). |
 | `tests/` | unit and end-to-end by default; `pytest -m packaging` needs a real `pre-commit` install and is slow. |
 | `.pre-commit-hooks.yaml` | the public hook manifest — `deny-terms`, `deny-terms-msg`, `audit-tree`. |
 | `.github/workflows/` | lint, test matrix, packaging job. CI runs on `ubuntu-latest` with a current git and is unaffected by the rhel-root blocker above. |
@@ -244,13 +244,17 @@ though the rhel-root rule and the path facts above still do.
 
 ## Open items
 
-- **The native git-hook front end is required, not optional.** git 2.21 is a
-  fixed floor and the pre-commit framework cannot run there at all, so a plain
-  `.git/hooks/pre-commit` calling the console scripts directly is what covers
-  the floor. Framework support stays for consumers on git 2.31 and above.
-  Emulating the missing flag was investigated and declined; see
-  `a/doc/rejected-pre-commit-git-2.21-backport.md`, which does not need
-  reading unless a consumer forces the question.
+- **The native git-hook front end is built.** `install-hooks` (new console
+  script, `src/git_hygiene/install_hooks.py`) writes `.git/hooks/pre-commit`
+  and `.git/hooks/commit-msg` shims that call `check-identifiers` directly -
+  no framework, no floor above git's own 2.21. Idempotent by reseeding, marks
+  its own files so a foreign hook is left alone without `--force`, and
+  supports `--dry-run` and `--uninstall`. Verified against a real commit under
+  both Cygwin git 2.21 (rhel root) and Git for Windows - a term match blocks
+  the commit, clean content does not. Not yet pushed for CI to prove the
+  packaging side (the console-script entry point resolving from an installed
+  wheel), matching the caution in `a/doc/rejected-pre-commit-git-2.21-backport.md`
+  about `try-repo` never having been proven here either.
 - **`tests/` is not 3.6.8-clean, and that is undecided.** `src/` was brought to
   the floor, but `tests/test_packaging.py` and `tests/test_end_to_end.py` still
   use `from __future__ import annotations`, PEP 585 generics and
@@ -258,7 +262,10 @@ though the rhel-root rule and the path facts above still do.
   run on a RHEL 8.10 box, which is the environment the floor exists to serve.
   Either bring the tests to the floor as well, or state deliberately that tests
   are dev-interpreter-only and accept that the floor is verified by other
-  means.
+  means. `tests/test_install_hooks.py` follows the same existing convention
+  and has the same gap - `install_hooks.py` itself was checked separately with
+  `python3 -m py_compile` under the rhel root's 3.6.9, which is what actually
+  stands in for this decision until it is made project-wide.
 - **v0.2.0 deny-term resolution is designed but not built.** See
   `a/doc/deny-term-resolution.md`. Suggested order: native front end first,
   then `--explain` against the current single-file model as a v0.1.1, then the

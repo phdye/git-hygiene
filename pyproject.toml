@@ -25,6 +25,7 @@ dependencies = []
 [project.scripts]
 check-identifiers = "git_hygiene.check_identifiers:main"
 audit-tree = "git_hygiene.audit_tree:main"
+install-hooks = "git_hygiene.install_hooks:main"
 
 [project.optional-dependencies]
 dev = [
