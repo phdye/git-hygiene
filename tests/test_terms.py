@@ -1,67 +1,105 @@
-"""Unit tests for term loading and scanning."""
+"""Unit tests for the low-level primitives in git_hygiene.terms:
+compiling a term, scanning text against compiled patterns, and
+deciding what a report may print. Layered resolution itself - which
+files get read, classification, negation - is tested in
+test_resolution.py; this file stays beneath that, matching the module
+boundary described in terms.py's own docstring.
+"""
 
 from pathlib import Path
 
-from git_hygiene.terms import load_patterns, report, scan_text
+from git_hygiene.terms import compile_term, report, scan_text
 
 
-def write_terms(tmp_path: Path, *terms: str) -> Path:
-    path = tmp_path / "deny-terms.txt"
-    path.write_text("\n".join(terms) + "\n", encoding="utf-8")
-    return path
+def pub(term):
+    # type: (str) -> object
+    return compile_term(term, Path("team.deny-terms"), "public")
 
 
-def test_absent_term_file_yields_no_patterns(tmp_path: Path) -> None:
-    assert load_patterns(tmp_path / "nope.txt") == []
+def priv(term):
+    # type: (str) -> object
+    return compile_term(term, Path("~/.config/git/deny-terms.txt"), "private")
 
 
-def test_comments_and_blanks_ignored(tmp_path: Path) -> None:
-    path = write_terms(tmp_path, "# a comment", "", "   ", "realterm")
-    assert len(load_patterns(path)) == 1
+def test_match_is_case_insensitive():
+    # type: () -> None
+    hits = scan_text("contains SomeTerm here", [priv("someterm")], "f")
+    assert len(hits) == 1
 
 
-def test_match_is_case_insensitive(tmp_path: Path) -> None:
-    patterns = load_patterns(write_terms(tmp_path, "SomeTerm"))
-    assert scan_text("contains someterm here", patterns, "f")
-    assert scan_text("contains SOMETERM here", patterns, "f")
-
-
-def test_word_boundary_prevents_substring_match(tmp_path: Path) -> None:
+def test_word_boundary_prevents_substring_match():
+    # type: () -> None
     """The false-positive class that gets guards switched off: a short
     term must not fire inside an unrelated longer word."""
-    patterns = load_patterns(write_terms(tmp_path, "abc"))
+    patterns = [priv("abc")]
     assert not scan_text("xxabcxx and abcdef and zabc", patterns, "f")
     assert scan_text("a bare abc here", patterns, "f")
 
 
-def test_hyphenated_term_matches(tmp_path: Path) -> None:
-    patterns = load_patterns(write_terms(tmp_path, "some-org"))
-    assert scan_text("we use some-org daily", patterns, "f")
+def test_hyphenated_term_matches():
+    # type: () -> None
+    assert scan_text("we use some-org daily", [priv("some-org")], "f")
 
 
-def test_multi_word_term_matches(tmp_path: Path) -> None:
-    patterns = load_patterns(write_terms(tmp_path, "Some Project"))
-    assert scan_text("the Some Project repo", patterns, "f")
+def test_multi_word_term_matches():
+    # type: () -> None
+    assert scan_text("the Some Project repo", [priv("Some Project")], "f")
 
 
-def test_reports_location_not_term(tmp_path: Path, capsys) -> None:
-    patterns = load_patterns(write_terms(tmp_path, "secretname"))
-    problems = scan_text("line one\nhas secretname\n", patterns, "somefile.md")
-    assert problems == ["  somefile.md:2"]
-
-    rc = report(problems, "staged content")
-    captured = capsys.readouterr()
-    assert rc == 1
-    # The whole point: the term must never reach any output stream.
-    assert "secretname" not in captured.err
-    assert "secretname" not in captured.out
-    assert "somefile.md:2" in captured.err
+def test_line_reported_once_even_with_several_terms():
+    # type: () -> None
+    hits = scan_text("alpha and beta together", [priv("alpha"), priv("beta")], "f")
+    assert [h.location for h in hits] == ["f:1"]
 
 
-def test_report_returns_zero_when_clean() -> None:
+def test_hit_carries_line_and_source():
+    # type: () -> None
+    hits = scan_text("line one\nhas secretname\n", [priv("secretname")], "somefile.md")
+    assert len(hits) == 1
+    assert hits[0].location == "somefile.md:2"
+    assert hits[0].term == "secretname"
+    assert hits[0].klass == "private"
+
+
+def test_report_returns_zero_when_clean():
+    # type: () -> None
     assert report([], "staged content") == 0
 
 
-def test_line_reported_once_even_with_several_terms(tmp_path: Path) -> None:
-    patterns = load_patterns(write_terms(tmp_path, "alpha", "beta"))
-    assert scan_text("alpha and beta together", patterns, "f") == ["  f:1"]
+def test_private_term_never_reaches_output_by_default(capsys):
+    # type: (object) -> None
+    hits = scan_text("has secretname\n", [priv("secretname")], "somefile.md")
+    rc = report(hits, "staged content")
+    captured = capsys.readouterr()
+    assert rc == 1
+    assert "secretname" not in captured.err
+    assert "secretname" not in captured.out
+    assert "somefile.md:1" in captured.err
+
+
+def test_show_private_terms_reveals_it(capsys):
+    # type: (object) -> None
+    hits = scan_text("has secretname\n", [priv("secretname")], "somefile.md")
+    rc = report(hits, "staged content", show_private=True)
+    captured = capsys.readouterr()
+    assert rc == 1
+    assert "secretname" in captured.err
+
+
+def test_public_term_prints_by_default(capsys):
+    # type: (object) -> None
+    hits = scan_text("has teamword\n", [pub("teamword")], "somefile.md")
+    rc = report(hits, "staged content")
+    captured = capsys.readouterr()
+    assert rc == 1
+    assert "teamword" in captured.err
+
+
+def test_no_show_terms_hides_even_public(capsys):
+    # type: (object) -> None
+    hits = scan_text("has teamword\n", [pub("teamword")], "somefile.md")
+    rc = report(hits, "staged content", show_terms=False)
+    captured = capsys.readouterr()
+    assert rc == 1
+    assert "teamword" not in captured.err
+    assert "somefile.md:1" in captured.err
