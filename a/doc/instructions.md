@@ -142,7 +142,7 @@ Within `a/`:
 
 | Path | Holds |
 |---|---|
-| `a/doc/` | designs and standing instructions, including this file. `deny-term-resolution.md` (v0.2.0 design), `ci-term-provisioning.md` (getting a private list onto CI safely - #1/#2/#3 supported today with no code changes, #4 recorded as a deferred proposal), `rejected-pre-commit-git-2.21-backport.md`. |
+| `a/doc/` | designs and standing instructions, including this file. `verification-discipline.md` (the failure shapes this project actually produces - read before claiming something is verified), `floor-checks.md` (the two checks that hold the 3.6.8 floor), `deny-term-resolution.md` (v0.2.0 design), `ci-term-provisioning.md` (getting a private list onto CI safely), `rejected-pre-commit-git-2.21-backport.md`. |
 | `a/handoff/` | session handoffs — read the latest one before starting |
 | `a/issue/` | findings about a defect or a decision (create as needed; none yet) |
 | `a/open-items/` | the living worklist (create as needed; none yet) |
@@ -182,7 +182,16 @@ context about this workstation or how the work gets done.
   memory.
 - **Verify by computing.** Run the test, the `pytest -m packaging` job, the
   `pre-commit validate-manifest`. Do not report a coverage number or a test
-  count from memory — read it off the actual run.
+  count from memory — read it off the actual run. **Running something is
+  necessary and not sufficient**: read `a/doc/verification-discipline.md`
+  before claiming anything is verified. It records the failure shapes this
+  project has actually produced — assertions that a broken implementation
+  would also satisfy, untested cells of an environment cross-product,
+  limitations inferred rather than tried, and summaries stated at a coarser
+  grain than the work. Four defects reached `main` in one session through
+  those, every one of them while "verify by computing" was being followed.
+  For the 3.6.8 floor specifically, `a/doc/floor-checks.md` gives the two
+  checks needed and why running the suite is not one of them on its own.
 - **Ask clarifying questions before detailed answers or large changes;**
   state assumptions when proceeding unattended. Do not re-ask something
   already answered in the session.
