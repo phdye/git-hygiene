@@ -1,0 +1,68 @@
+[build-system]
+requires = ["setuptools>=61.0", "setuptools_scm>=8.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "git-hygiene"
+dynamic = ["version"]
+description = "pre-commit hooks that keep engagement identifiers out of repositories"
+readme = "README.md"
+license = {text = "MIT OR Apache-2.0"}
+authors = [{name = "Philip Dye", email = "phdye@acm.org"}]
+requires-python = ">=3.9"
+# No runtime dependencies, deliberately. A pre-commit hook that pulls a
+# dependency tree is a hook that breaks in someone else's environment.
+dependencies = []
+
+[project.scripts]
+check-identifiers = "git_hygiene.check_identifiers:main"
+audit-tree = "git_hygiene.audit_tree:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=5.0.0",
+    "mypy>=1.9.0",
+    "ruff>=0.4.0",
+    "pre-commit>=3.7.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools_scm]
+write_to = "src/git_hygiene/_version.py"
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "S", "C4", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# S101: assert is the point of a test. S603/S607: the tests drive real
+# git repositories on purpose, and git is resolved from PATH the same
+# way every other git tooling resolves it.
+"tests/**" = ["S101", "S603", "S607"]
+
+[tool.mypy]
+# 3.10, not the project's 3.9 floor - installed mypy cannot check
+# against anything older. Nothing in the 3.9-3.10 gap is used.
+python_version = "3.10"
+strict = true
+warn_return_any = true
+
+[tool.pytest.ini_options]
+markers = [
+    "packaging: exercises pre-commit's own hook installation (slow)",
+]
+addopts = "-m 'not packaging'"
+
+[tool.coverage.run]
+source = ["src/git_hygiene"]
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true
