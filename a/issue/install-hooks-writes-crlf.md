@@ -1,5 +1,33 @@
 # install-hooks writes CRLF line endings and every installed hook fails
 
+**FIXED 2026-08-16**, in the same session that received this report. The write
+is now `target.write_bytes(render(hook_name).encode("utf-8"))`, and two tests
+were added: one asserting no `\r\n` in the written hooks, one distinguishing
+refusal from crash by asserting on what the hook actually said. Verified in
+the combination that was broken - hooks written by **Windows** Python,
+executed by **Cygwin** bash on git 2.21: no CR, `bash -n` clean, clean commit
+succeeds, dirty commit refused with `BLOCKED` and rc=1 rather than a syntax
+error. The regression test was confirmed to fail against the pre-fix code
+before being kept.
+
+**One correction to the analysis below.** The closing section supposes the
+Cygwin half of `4679667`'s verification "was exercised through something other
+than a real `git commit`". It was a real `git commit`, and it really did
+refuse. The gap is different, and worth stating precisely because the lesson
+differs: **the two verifications used different writers.** The Cygwin check
+installed the hooks with `python3 -m git_hygiene.install_hooks` under *Cygwin*
+Python 3.6.9, which writes `\n`; the pytest check used *Windows* Python, which
+writes `\r\n`, but ran under Git for Windows' bash, which tolerates CRLF. Each
+half passed honestly. Neither covered the combination that actually ships on
+this workstation - Windows-written hook, Cygwin-executed - and "verified under
+both Cygwin git 2.21 and Git for Windows" was true clause by clause while
+being false as a whole. A matrix stated as two independent axes had one cell
+never tested, and the summary implied all of them were.
+
+Everything below is the original report as received, kept for the record.
+
+---
+
 **Found, not fixed.** Discovered 2026-08-16 by the `azdo` session, which was
 reviewing this repository for whether `azdo` should consume it dynamically
 rather than keep its own copy of the deny-term check. Not fixed here because

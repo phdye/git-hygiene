@@ -82,7 +82,15 @@ def install_one(hooks_dir: Path, hook_name: str, force: bool, dry_run: bool) -> 
         verb = "rewrite" if target.exists() else "create "
         return Result(f"{verb} {hook_name}  (dry run)", True)
     hooks_dir.mkdir(parents=True, exist_ok=True)
-    target.write_text(render(hook_name), encoding="utf-8")
+    # write_bytes, not write_text: write_text opens in text mode, so on
+    # Windows every \n in _TEMPLATE becomes \r\n on disk. Cygwin bash
+    # does not strip those, reads `fi\r` as a command name, and the
+    # unclosed `if` fails with "syntax error: unexpected end of file" -
+    # breaking every commit, clean or dirty. The dev interpreter here IS
+    # Windows Python, so that is the normal path, not an edge case.
+    # Path.write_text grew newline= only in 3.10 and the floor is 3.6.8,
+    # so bytes is the portable fix. See a/issue/install-hooks-writes-crlf.md.
+    target.write_bytes(render(hook_name).encode("utf-8"))
     target.chmod(0o755)
     return Result(f"wrote   {hook_name}", True)
 

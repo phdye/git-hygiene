@@ -184,3 +184,23 @@ def test_installed_hook_actually_blocks_a_commit(repo, terms, tmp_path):
     )
     assert r.returncode != 0
     assert git("log", "--oneline", cwd=repo).stdout.strip() == ""
+    # A hook that REFUSES and a hook that CRASHES both give a non-zero rc
+    # and an empty log, so the two assertions above cannot tell them
+    # apart - a completely broken hook satisfies them. Assert on what the
+    # hook actually said. See a/issue/install-hooks-writes-crlf.md.
+    assert "BLOCKED" in r.stderr, r.stderr
+    assert "syntax error" not in r.stderr, r.stderr
+
+
+def test_installed_hooks_have_no_carriage_returns(repo):
+    # type: (Path) -> None
+    """Path.write_text opens in text mode, so on Windows it turns every
+    \\n into \\r\\n. Cygwin bash then reads `fi\\r` as a command name and
+    every commit dies with "syntax error: unexpected end of file", clean
+    or dirty. Git for Windows' bash tolerates CRLF, so this is invisible
+    to a Windows-only check - assert on the bytes, which is true
+    everywhere and points straight at the cause."""
+    assert install_hooks.main([str(repo)]) == 0
+    for name in ("pre-commit", "commit-msg"):
+        raw = (repo / ".git" / "hooks" / name).read_bytes()
+        assert b"\r\n" not in raw, name + " was written with CRLF line endings"
