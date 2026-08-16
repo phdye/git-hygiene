@@ -142,7 +142,7 @@ Within `a/`:
 
 | Path | Holds |
 |---|---|
-| `a/doc/` | designs and standing instructions, including this file |
+| `a/doc/` | designs and standing instructions, including this file. `deny-term-resolution.md` (v0.2.0 design), `ci-term-provisioning.md` (getting a private list onto CI safely - #1/#2/#3 supported today with no code changes, #4 recorded as a deferred proposal), `rejected-pre-commit-git-2.21-backport.md`. |
 | `a/handoff/` | session handoffs — read the latest one before starting |
 | `a/issue/` | findings about a defect or a decision (create as needed; none yet) |
 | `a/open-items/` | the living worklist (create as needed; none yet) |

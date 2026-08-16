@@ -330,6 +330,12 @@ rather than after.
 
 ## Open questions
 
+- Getting a *private* list's plaintext onto a CI runner safely - a
+  provisioning question, not a resolution-layering one - is written up
+  separately in `a/doc/ci-term-provisioning.md`. Nothing here changes as a
+  result of it; `GIT_DENY_TERMS` already accepts any path and `report()`
+  already withholds a private term by default, which is the entire surface
+  that document builds on.
 - Whether `/etc/git-hygiene/deny-terms` should also support a `.d/` directory,
   for configuration management tools that prefer dropping files over editing
   one. Deferred until something asks for it.

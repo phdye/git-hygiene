@@ -124,6 +124,18 @@ git add /tmp/probe.md 2>/dev/null || true
 pre-commit run deny-terms --all-files
 ```
 
+## Using a private term list in CI
+
+The term file is a local workstation convention by default, but
+`GIT_DENY_TERMS` works anywhere, including CI - the question is only how a
+*private* list's plaintext gets onto a runner without ending up in its
+logs, environment dumps, or cache storage. Short version: a CI secret,
+materialized to a runner-local temp file for the job's lifetime, with
+`GIT_DENY_TERMS` pointed at it - no git-hygiene code involved, since
+`report()` already withholds a private term from output by default. Full
+writeup, including an encrypted-blob variant for sharing one list across
+many repos and a self-hosted-runner variant: `a/doc/ci-term-provisioning.md`.
+
 ## Development
 
 ```bash
