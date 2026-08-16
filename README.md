@@ -136,6 +136,13 @@ materialized to a runner-local temp file for the job's lifetime, with
 writeup, including an encrypted-blob variant for sharing one list across
 many repos and a self-hosted-runner variant: `a/doc/ci-term-provisioning.md`.
 
+A working example lives at
+[phdye/git-hygiene-ci-demo](https://github.com/phdye/git-hygiene-ci-demo).
+It installs git-hygiene from a tag the way any consumer would, provisions a
+(fake) private term list two different ways, and proves in its own CI logs
+both that GitHub masks the secret and that the hook still refuses the
+commit without naming the term.
+
 ## Development
 
 ```bash

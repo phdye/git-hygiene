@@ -6,6 +6,30 @@ nothing about them is obvious, not because git-hygiene needs to implement
 anything for them to work. #4 is a proposal, deliberately not started; see
 its own section.
 
+**#1 and #2 are verified, not asserted.** Both run on real GitHub Actions
+in a separate consumer repository, `phdye/git-hygiene-ci-demo`, which
+installs `git-hygiene` from a tag exactly as any consumer would. Run #2 of
+that repo's `Verify CI term provisioning` workflow passed both jobs on
+2026-08-16:
+
+- The masking claim below was checked by *deliberately* echoing the raw
+  secret in a step written for that purpose. The job log shows `***`, not
+  the term.
+- Both jobs then staged a file containing the term and confirmed
+  `check-identifiers` exits non-zero, printing `bad.md:1` and the line
+  `The term is deliberately not printed` - so the term is withheld twice
+  over, once by GitHub and once by git-hygiene itself.
+
+#3 is not separately tested because it is mechanically identical to
+`GIT_DENY_TERMS` pointing at a file on local disk, which this project's
+own test suite already covers throughout `tests/`. "Self-hosted runner"
+versus "workstation" is not a different code path.
+
+An earlier revision of this document described #1 and #2 as working
+without any of the above having been run. That was a claim, not a
+verification, and this project's own conventions forbid exactly that
+(`a/doc/instructions.md`, "Verify by computing").
+
 ## The problem, precisely
 
 `GIT_DENY_TERMS` already accepts any path, and `report()` already withholds
