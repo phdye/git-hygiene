@@ -9,7 +9,15 @@ description = "pre-commit hooks that keep engagement identifiers out of reposito
 readme = "README.md"
 license = {text = "MIT OR Apache-2.0"}
 authors = [{name = "Philip Dye", email = "phdye@acm.org"}]
-requires-python = ">=3.9"
+requires-python = ">=3.6.8"
+# Floor is RHEL 8.10's shipped python3 (3.6.8), not a stylistic choice.
+# These hooks have to run on the machines they protect, and that
+# includes RHEL 8.10 targets with nothing newer installed. Verified
+# live against Cygwin's RHEL-8.10 emulation (python 3.6.9): no
+# `from __future__ import annotations`, no PEP 604/585 generics at
+# runtime (typing.List/Optional/Pattern instead), no capture_output=
+# (3.7+) on subprocess.run. See a/doc/instructions.md.
+#
 # No runtime dependencies, deliberately. A pre-commit hook that pulls a
 # dependency tree is a hook that breaks in someone else's environment.
 dependencies = []
@@ -35,7 +43,11 @@ write_to = "src/git_hygiene/_version.py"
 
 [tool.ruff]
 line-length = 100
-target-version = "py39"
+# py37 is ruff's oldest available target-version; there is no py36.
+# The real floor is 3.6.8 (see requires-python above), so this is a
+# ceiling on what ruff can express, not the actual minimum. UP022 on
+# terms.git() is suppressed for the one line that gap affects.
+target-version = "py37"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "B", "S", "C4", "SIM"]
@@ -48,8 +60,11 @@ ignore = ["E501"]
 "tests/**" = ["S101", "S603", "S607"]
 
 [tool.mypy]
-# 3.10, not the project's 3.9 floor - installed mypy cannot check
-# against anything older. Nothing in the 3.9-3.10 gap is used.
+# 3.10, not the project's real 3.6.8 floor - mypy 2.x refuses any
+# python_version below 3.10 outright ("Python 3.6 is not supported").
+# This checks the code's shape, not its actual runtime compatibility;
+# the 3.6.9 emulation (a/probe scripts, run and discarded) is what
+# proves the floor, not mypy.
 python_version = "3.10"
 strict = true
 warn_return_any = true
