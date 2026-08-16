@@ -37,8 +37,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 # directly and needs no framework. These tests cover the framework
 # path only, which is inherently a >= 2.31 concern.
 #
-# See a/doc/pre-commit-git-2.21-backport.md for why the missing flag is
-# not emulated even though it could be.
+# See a/doc/rejected-pre-commit-git-2.21-backport.md for why the missing
+# flag is not emulated even though it could be. That decision is closed.
 MIN_GIT = (2, 31)
 
 

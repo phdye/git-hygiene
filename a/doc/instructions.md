@@ -147,6 +147,18 @@ Within `a/`:
 | `a/issue/` | findings about a defect or a decision (create as needed; none yet) |
 | `a/open-items/` | the living worklist (create as needed; none yet) |
 
+**A document recording a decision not to do something is prefixed
+`rejected-`.** The point of such a file is to stop the question being
+reopened, and a neutral name defeats that: the reader has to open it to learn
+they did not need to. The prefix puts the verdict in the directory listing.
+The file's own first lines then state the decision and the single condition
+that would reopen it, before any of the reasoning. `a/doc/rejected-pre-commit-git-2.21-backport.md`
+is the pattern.
+
+Applies to a settled negative decision, not to an open question leaning
+negative. Something still undecided belongs in open items above, or in
+`a/issue/`, under its own neutral name.
+
 There is no `doc/` at the repo root yet, unlike `~/repo/azdo`. If design
 material grows past what fits in `README.md`, start one rather than letting
 `a/doc/` absorb material that would survive being handed to a stranger with no
@@ -237,7 +249,8 @@ though the rhel-root rule and the path facts above still do.
   `.git/hooks/pre-commit` calling the console scripts directly is what covers
   the floor. Framework support stays for consumers on git 2.31 and above.
   Emulating the missing flag was investigated and declined; see
-  `a/doc/pre-commit-git-2.21-backport.md`.
+  `a/doc/rejected-pre-commit-git-2.21-backport.md`, which does not need
+  reading unless a consumer forces the question.
 - **`tests/` is not 3.6.8-clean, and that is undecided.** `src/` was brought to
   the floor, but `tests/test_packaging.py` and `tests/test_end_to_end.py` still
   use `from __future__ import annotations`, PEP 585 generics and

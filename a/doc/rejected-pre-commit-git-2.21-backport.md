@@ -1,7 +1,17 @@
-# Emulating `git ls-files --deduplicate` for git 2.21
+# REJECTED: emulating `git ls-files --deduplicate` for git 2.21
 
-Status: investigated 2026-08-16, decided not to implement. Recorded so the
-analysis does not have to be redone if a consumer ever forces the question.
+**Decision: do not build this. Nothing here needs revisiting.** Investigated
+2026-08-16 and declined. The floor is already covered by the native git-hook
+front end, which needs no framework at all.
+
+You do not need to read further unless a consumer has appeared that requires
+the pre-commit framework specifically and cannot move off git 2.21. That is
+the single condition that reopens this, and it is spelled out at the end.
+
+The rest of this file exists only so the measurements do not have to be taken
+again if that happens. It is a record, not an open question.
+
+---
 
 ## The question
 
