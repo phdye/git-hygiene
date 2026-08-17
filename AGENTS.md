@@ -143,9 +143,8 @@ confined to `workstation-notes.md`.
 - **Commits:** conventional `type(scope): summary`, imperative, present
   tense, first line under 72 characters, body explains why and not what,
   one logical phase per commit, no `Co-Authored-By`. Where a session is
-  running through a tool bridge that mangles inline `-m` (see
-  `a/doc/workstation-notes.md`), commit via `git commit -F <tempfile>`
-  instead; a native shell can use `-m` normally.
+  running through a tool bridge that mangles inline `-m`, commit via
+  `git commit -F <tempfile>` instead; a native shell can use `-m` normally.
 - **Design-first.** Update `README.md` or the governing decision doc in the
   same change, first or alongside the code, never after. For this repo the
   README *is* the design doc — it is small enough that a separate
@@ -202,8 +201,8 @@ confined to `workstation-notes.md`.
   `stdout`/`stderr`/`universal_newlines=` in their place, matching how
   `git_hygiene.terms.git()` already handled this in `src/`. Proven, not just
   compiled: `PYTHONPATH=src python3 -m pytest tests` under the project's
-  pinned 3.6.9 test interpreter (see `a/doc/workstation-notes.md` for where
-  that lives) with its pinned pytest 4.6.11 - 27 passed, 2 skipped (the
+  pinned 3.6.9 test interpreter with its pinned pytest 4.6.11 - 27 passed,
+  2 skipped (the
   packaging tests, correctly, since that path needs pre-commit and git >=
   2.31 by design). `test_installed_hook_actually_blocks_a_commit` now builds
   its own portable `check-identifiers` shim from `sys.executable` rather than
