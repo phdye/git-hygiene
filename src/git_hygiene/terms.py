@@ -154,7 +154,15 @@ def git_dir(repo: Path) -> Optional[Path]:
     """The repository's git directory, resolved the way git itself
     would - so a worktree, or a repo reached through a symlink chain,
     lands on the right .git regardless of where the on-disk `.git`
-    entry actually points."""
+    entry actually points.
+
+    Like git_toplevel below, this must survive git answering in a path
+    convention the running interpreter does not share. A relative
+    answer is joined onto `repo` and is always usable; an absolute one
+    may be a POSIX path from a Cygwin git under a native Windows
+    interpreter, so it is checked before being trusted and the
+    conventional location is used if it does not resolve.
+    """
     out = git("rev-parse", "--git-dir", cwd=repo)
     if out.returncode != 0:
         return None
@@ -162,14 +170,45 @@ def git_dir(repo: Path) -> Optional[Path]:
     if not rel:
         return None
     path = Path(rel)
-    return path if path.is_absolute() else repo / path
+    if not path.is_absolute():
+        return repo / path
+    if path.exists():
+        return path
+    fallback = repo / ".git"
+    return fallback if fallback.exists() else None
 
 
 def git_toplevel(start: Optional[Path] = None) -> Optional[Path]:
     """The work tree root, or None outside one. resolution.py's
-    anchor - see a/doc/deny-term-resolution.md, "Resolve once"."""
-    out = git("rev-parse", "--show-toplevel", cwd=start)
+    anchor - see a/doc/deny-term-resolution.md, "Resolve once".
+
+    Deliberately NOT `rev-parse --show-toplevel`. That returns an
+    absolute path in *git's* convention, and under Cygwin git that is a
+    POSIX path like `/home/user/repo`. A native Windows interpreter can
+    do nothing useful with it: `subprocess.run(cwd=...)` raises
+    NotADirectoryError [WinError 267], and - worse, because it is
+    silent - `Path("/home/user/repo") / ".deny-terms"` simply does not
+    exist, so every layer probe answers False and the scan passes
+    having found no terms at all. Fail-open is the outcome this project
+    exists to prevent.
+
+    `--show-cdup` instead returns a path *relative* to the current
+    directory (empty at the root, `../../` two levels down). A relative
+    path has no convention to disagree about, so joining it onto the
+    interpreter's own `Path.cwd()` yields an answer the interpreter can
+    both resolve and spawn with, on every platform, with no translation
+    step and no `cygpath`.
+
+    The general rule, which the sibling issues in a/issue/ keep
+    rediscovering: git's answer identifies the repository, the
+    interpreter's answer says where the interpreter can go, and those
+    are different questions that merely coincide on most platforms.
+    """
+    out = git("rev-parse", "--show-cdup", cwd=start)
     if out.returncode != 0:
         return None
-    text = out.stdout.decode("utf-8", "replace").strip()
-    return Path(text) if text else None
+    cdup = out.stdout.decode("utf-8", "replace").strip()
+    base = Path(start) if start is not None else Path.cwd()
+    if not cdup:
+        return base
+    return (base / cdup).resolve()
