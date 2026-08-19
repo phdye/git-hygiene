@@ -23,10 +23,16 @@ this package targets is RHEL 8.10's Python 3.6.8, verified separately (see
 
 ## The old-git test environment
 
-This machine's oldest available git (2.21.0) is a deliberate RHEL 8.10
-emulation choice, not a gap — see the global environment notes for why.
+**No longer old.** This machine's verification replica ran git 2.21.0 until
+2026-08-16 and now runs 2.43.7, which is what RHEL 8.10 actually ships — the
+2.21 came from the 2019 snapshot the replica was built from, not from the
+emulation target, so raising it is a fidelity fix rather than drift.
+
 What's specific to this package: `pre-commit try-repo` has never actually
-succeeded against it. The old git blocked it first; a different, current
-git installation on the same machine then produced `bad pack header`
-cloning a repo the old git had created. Neither failure is a defect in
-this code.
+succeeded against this working copy. The old git blocked it first; a
+different, current git installation on the same machine then produced
+`bad pack header` cloning a repo the old git had created — traced to a POSIX
+`core.worktree`, see `a/issue/`. Neither failure is a defect in this code, and
+with the replica now past the framework's 2.31 requirement the first cause is
+gone. Whether `try-repo` now works locally is **untested**; CI remains the
+proof that matters.

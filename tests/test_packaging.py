@@ -38,14 +38,15 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 # framework cannot start at all, so these tests skip: there is nothing
 # to exercise, not a failure to tolerate.
 #
-# This is NOT a statement that old git is out of scope. This project's
-# git floor is 2.21, matching RHEL 8.10, and that floor is covered by
-# the native git-hook front end, which calls the console scripts
-# directly and needs no framework. These tests cover the framework
-# path only, which is inherently a >= 2.31 concern.
+# This is NOT a statement that old git is out of scope. Old git is
+# covered by the native git-hook front end, which calls the console
+# scripts directly and needs no framework. These tests cover the
+# framework path only, which is inherently a >= 2.31 concern.
 #
 # See a/doc/rejected-pre-commit-git-2.21-backport.md for why the missing
-# flag is not emulated even though it could be. That decision is closed.
+# flag is not emulated even though it could be. That decision is closed,
+# and since the 2019-snapshot git that prompted it has been replaced by
+# 2.43, the question no longer arises here at all.
 MIN_GIT = (2, 31)
 
 

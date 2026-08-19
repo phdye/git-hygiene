@@ -1,6 +1,6 @@
 """The native hook front end: install-hooks writes plain
-`.git/hooks/` shims that need no `pre-commit` framework, and that is
-the path this project's own git 2.21 floor depends on.
+`.git/hooks/` shims that need no `pre-commit` framework, which is what
+covers git older than the framework's own 2.31 requirement.
 
 Kept 3.6.8-clean like the rest of tests/ - see a/doc/instructions.md.
 No `from __future__ import annotations`, no runtime

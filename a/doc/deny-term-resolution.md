@@ -285,22 +285,27 @@ environment variable, option winning.
 that makes this v0.2.0. A single path remains valid input, so the common
 existing usage keeps working; the semantics around it do not.
 
-## The git floor is 2.21, and what that forces
+## The git floor, and what it forces
 
-Decided 2026-08-16, Philip: git 2.21 is a fixed floor, matching RHEL 8.10 as
-the Python floor does. Every git invocation in this design is 2.21 safe,
-including `ls-files --error-unmatch` and `rev-parse --show-toplevel`, both long
-predating it.
+Decided 2026-08-16, Philip: keep every git invocation in this design safe on
+very old git. `ls-files --error-unmatch` and `rev-parse --show-toplevel` both
+long predate any version in play, so the design costs nothing to hold to this.
 
-The consequence is not about this design's git usage but about its front end.
-`pre-commit` cannot run on git 2.21 at all, since it drives
-`ls-files --deduplicate`, added in git 2.31. A fixed 2.21 floor therefore means
-**`pre-commit` cannot be the only way to invoke these hooks**, and a native git
-hook front end calling the console scripts directly is required rather than
-optional. That is a separate piece of work, tracked outside this document, but
-it constrains the interface here: everything must be reachable from a plain
-`.git/hooks/pre-commit` shell script with no `pre-commit` present, which the
-option and environment surface above already satisfies.
+**Corrected the same day.** This section originally set the floor at 2.21
+"matching RHEL 8.10 as the Python floor does". The Python parallel does not
+hold: RHEL 8.10 ships Python 3.6.8 *and* git 2.43. The 2.21 came from the 2019
+Cygwin Time Machine snapshot the verification replica was built from, and that
+replica has since been moved to git 2.43.7. So no environment in play is below
+`pre-commit`'s own 2.31 requirement.
+
+The consequence for the front end therefore weakens from *required* to
+*prudent*. `pre-commit` still cannot run below git 2.31, so a native git-hook
+front end remains the only way to invoke these hooks on genuinely old git, and
+on any host where the framework cannot be installed. It is no longer the only
+usable path in this project's own environment. The constraint it places on this
+design is unchanged and worth keeping: everything must be reachable from a
+plain `.git/hooks/pre-commit` shell script with no `pre-commit` present, which
+the option and environment surface above already satisfies.
 
 ## Implementation notes
 

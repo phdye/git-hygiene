@@ -183,7 +183,8 @@ confined to `workstation-notes.md`.
 - **The native git-hook front end is built.** `install-hooks` (new console
   script, `src/git_hygiene/install_hooks.py`) writes `.git/hooks/pre-commit`
   and `.git/hooks/commit-msg` shims that call `check-identifiers` directly -
-  no framework, no floor above git's own 2.21. Idempotent by reseeding, marks
+  no framework, and no dependence on git's own version. Idempotent by
+  reseeding, marks
   its own files so a foreign hook is left alone without `--force`, and
   supports `--dry-run` and `--uninstall`. Verified against a real commit
   under two different git installations on this machine - an old one

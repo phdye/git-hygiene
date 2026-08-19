@@ -1,13 +1,14 @@
 """Install git-hygiene's hooks directly into a repository's
 `.git/hooks/`, with no `pre-commit` framework involved.
 
-Exists because `pre-commit` 4.6.2 cannot run under git 2.21 (it calls
-`git ls-files -z --deduplicate`, which arrived in git 2.31), and git
-2.21 is this project's own floor, matching RHEL 8.10. See
-`a/doc/rejected-pre-commit-git-2.21-backport.md` for why that gap is
-patched here rather than in `pre-commit` itself. Consumers on a newer
-git keep the framework path documented in README.md; this is the path
-for the floor, and it is required there, not a convenience.
+Exists because `pre-commit` 4.6.2 calls `git ls-files -z --deduplicate`,
+which arrived in git 2.31, so it cannot run at all on anything older.
+Current distributions are comfortably past that - RHEL 8.10 ships git
+2.43 - so this is a fallback for genuinely old git rather than the
+primary path, and for environments where the framework cannot be
+installed. See `a/doc/rejected-pre-commit-git-2.21-backport.md` for why
+that gap is not patched in `pre-commit` itself. Consumers on git 2.31 or
+newer should prefer the framework path documented in README.md.
 
 Each installed hook is a short POSIX shell shim that calls this
 package's own console scripts (`check-identifiers`), found on PATH
@@ -109,7 +110,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
             "Install git-hygiene's pre-commit and commit-msg hooks directly "
-            "into .git/hooks - no pre-commit framework, no git floor above 2.21."
+            "into .git/hooks - no pre-commit framework, works on any git."
         ),
     )
     parser.add_argument("repo", nargs="?", default=".", help="repository path (default: cwd)")

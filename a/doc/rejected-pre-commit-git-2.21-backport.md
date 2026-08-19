@@ -4,6 +4,24 @@
 2026-08-16 and declined. The floor is already covered by the native git-hook
 front end, which needs no framework at all.
 
+**Superseded the same day, and the conclusion is unchanged.** This document
+opened by asserting that git 2.21 was this project's floor "matching RHEL
+8.10". That was wrong: RHEL 8.10 ships git 2.43, and the 2.21 came from the
+2019 Cygwin Time Machine snapshot the verification replica was built from,
+not from the deployment target. The replica has since been moved to git
+2.43.7, so no environment in play is below 2.31 any more.
+
+That strengthens the rejection rather than weakening it. The emulation was
+declined on maintenance grounds - patching someone else's tool in the
+consumer's environment - and those grounds did not depend on the version
+number. What changes is urgency: there is now no environment here that needs
+it at all, so the reopening condition below has become correspondingly less
+likely rather than more.
+
+Read the rest only for the measurements. Where it says the floor is 2.21
+matching RHEL 8.10, read "the 2019 snapshot pinned 2.21; RHEL 8.10 ships
+2.43".
+
 You do not need to read further unless a consumer has appeared that requires
 the pre-commit framework specifically and cannot move off git 2.21. That is
 the single condition that reopens this, and it is spelled out at the end.

@@ -30,10 +30,15 @@ where they never execute and are correct for a checker at either end.
 Expect **50 collected, 48 passed, 2 skipped**. The two skips are
 `test_packaging`, and their reason must read:
 
-    needs pre-commit and git >= 2.31 (found git 2.21)
+    needs pre-commit and git >= 2.31 (found git 2.43)
 
-That is the correct and expected skip: `pre-commit` cannot run on git 2.21 at
-all, which is the whole reason the native `install-hooks` front end exists.
+Measured 2026-08-16. Note what the skip is caused by: `pre-commit` is not
+installed in the replica. It is *not* caused by the git version - the replica
+ran git 2.21 from the 2019 snapshot until that day, and now runs 2.43.7, which
+satisfies the framework's requirement. If `pre-commit` is ever installed there,
+these two tests will start running rather than skipping, and that is the
+desired outcome, not a regression.
+
 Confirm the *reason*, not the count - a test that silently stops running looks
 exactly like a test that passes.
 

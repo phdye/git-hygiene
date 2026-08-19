@@ -3,6 +3,19 @@
 Written 2026-08-16 by the session that created this repository. That
 session has stopped work here; whoever picks this up owns it.
 
+> **Superseded on one load-bearing point, same day.** This document states
+> that git 2.21 is a fixed floor "matching RHEL 8.10 as the Python floor
+> does". That is wrong. RHEL 8.10 ships **git 2.43**; the 2.21 came from the
+> 2019 Cygwin Time Machine snapshot the verification replica was built from,
+> not from the deployment target. The replica has since been moved to git
+> 2.43.7. The Python 3.6.8 floor is unaffected and remains correct.
+>
+> Read every 2.21-as-floor claim below as historical. The practical
+> consequence: the native `install-hooks` front end is a **fallback** for
+> genuinely old git and for hosts where the framework cannot be installed,
+> not the only usable path. See `a/doc/rejected-pre-commit-git-2.21-backport.md`,
+> which records why the conclusion there survives the corrected premise.
+
 ## What this is
 
 `pre-commit` hooks that keep engagement-specific identifiers -- client
