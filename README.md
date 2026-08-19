@@ -90,8 +90,9 @@ from behavior.
 ## Use without `pre-commit`
 
 `pre-commit` needs git 2.31 or newer (it calls `git ls-files
---deduplicate`). If your git is older - RHEL 8.10 ships 2.21 - install
-the hooks directly instead, with no framework involved:
+--deduplicate`). Most current distributions are well past that - RHEL
+8.10, for instance, ships 2.43 - but if your git is older, install the
+hooks directly instead, with no framework involved:
 
 ```bash
 pip install git-hygiene
