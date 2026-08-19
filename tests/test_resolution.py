@@ -1,7 +1,7 @@
 """Layered, classified term resolution - the core of v0.2.0.
 
-See the deny-term resolution design for the design this proves. Kept
-3.6.8-clean like the rest of tests/ - see the project instructions.
+Proves the design recorded in the project's design notes. Kept
+3.6.8-clean like the rest of tests/.
 """
 
 import os

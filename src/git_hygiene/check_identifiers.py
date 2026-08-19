@@ -5,7 +5,7 @@ Sees staged changes only. Prevents new leaks; it does not audit what
 is already committed - use `audit-tree` for that.
 
 Term resolution is layered and classified as of v0.2.0 - see
-the deny-term resolution design and git_hygiene.resolution. A hard
+git_hygiene.resolution. A hard
 resolution error (a tracked private term file, an unauthorized
 negation, a missing declared-public source) stops the check before it
 scans anything: a run that reported clean while misconfigured would be

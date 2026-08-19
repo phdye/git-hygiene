@@ -1,6 +1,6 @@
 """End-to-end tests against real temporary git repositories.
 
-Kept 3.6.8-clean on purpose - see the project instructions. No
+Kept 3.6.8-clean on purpose. No
 `from __future__ import annotations` (needs 3.7+ to exist at all), no
 runtime PEP 585/604 generics (subprocess.CompletedProcess[str] and
 similar are given as type comments instead, never evaluated), and no

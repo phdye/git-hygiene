@@ -4,10 +4,9 @@ Project root:  Cygwin ~/repo/git-hygiene   (session docs: ~/repo/git-hygiene/a/)
 
 `pre-commit` hooks that keep engagement-specific identifiers — client and
 organization names, project and repository names, internal codenames — out
-of repositories. Built after a real leak in a sibling package
-(`a sibling package`): a client organization name and project name sat in test
-fixtures from the first commit until an audit caught them, days before
-publication. The standing "no client identifiers" rule had been written
+of repositories. Built after a real leak in a sibling package: a client
+organization name and project name sat in test fixtures from the first
+commit until an audit caught them, days before publication. The standing "no client identifiers" rule had been written
 down the whole time and did not prevent it. `README.md` has the full
 design story; this file is about doing the work, not about the tool's own
 behavior.
@@ -22,14 +21,13 @@ that is what the `AGENTS.md` name signals. `CLAUDE.md` at the repository
 root is a one-line `@AGENTS.md` import, so a Claude Code session loads
 this file automatically with nothing to keep in sync separately.
 Machine-specific setup for this particular workstation — paths, shell
-quirks, which interpreter resolves where — lives apart in
-`the workstation notes` and is not repeated here.
+quirks, which interpreter resolves where — lives apart in the untracked
+working notes and is not repeated here.
 
 No roles are assigned in this project yet — it is small enough that one
 session has generally owned the whole tree at a time. If that changes,
-borrow `a sibling package`'s pattern (`the roles notes`, `the concurrency notes`)
-rather than inventing a new one; do not build role machinery here
-speculatively.
+adopt an established roles/concurrency pattern rather than inventing a new
+one; do not build role machinery here speculatively.
 
 ## Read first — the things that are expensive or dangerous to get wrong
 
@@ -70,7 +68,7 @@ speculatively.
 **`pre-commit` 4.6.2 will not run against git 2.21**, and the oldest git
 available in this project's own test environment is 2.21.0 (`git ls-files
 -z --deduplicate` fails there with `error: unknown option 'deduplicate'`;
-`--deduplicate` arrived in git 2.31). See `the workstation notes` for
+`--deduplicate` arrived in git 2.31). See the working notes for
 why that particular old version is what gets tested against here.
 
 This code's own git usage is 2.21-clean (`diff --cached`, `show`,
@@ -80,7 +78,7 @@ repositories and drive real git directly, not through `pre-commit`, and
 they pass under 2.21. Only the `pre-commit` runner itself is the
 incompatible piece.
 
-Recorded options, none chosen yet (`the session handoff` has the full
+Recorded options, none chosen yet (the working notes have the full
 reasoning): pin an old `pre-commit` where git is old; ship a plain
 `.git/hooks/pre-commit` shim calling the console scripts directly, needing
 no `pre-commit` at all; treat `audit-tree` as a manual pre-publish gate on
@@ -106,35 +104,20 @@ been proven, and prove it there before trusting a local `try-repo` run.
 | `tests/` | unit and end-to-end by default; `pytest -m packaging` needs a real `pre-commit` install and is slow. |
 | `.pre-commit-hooks.yaml` | the public hook manifest — `deny-terms`, `deny-terms-msg`, `audit-tree`. |
 | `.github/workflows/` | lint, test matrix, packaging job. CI runs on `ubuntu-latest` with a current git and is unaffected by the old-git blocker above. |
-| `a/` | everything about *doing* the work. Never exported, never packaged. |
 
-Within `a/`:
+Working notes — designs, decision records, issue write-ups, session
+handoffs, the worklist — are kept **outside version control** and are
+deliberately not part of this repository or its history. They are local
+to a working copy and are covered by a global ignore rule, so they never
+reach a clone, a release artifact, or a published commit. Their layout and
+filing conventions are documented with the notes themselves rather than
+here, so that this file stays about the project rather than about how one
+workstation is arranged.
 
-| Path | Holds |
-|---|---|
-| the working notes | designs and standing instructions. `verification-discipline.md` (the failure shapes this project actually produces — read before claiming something is verified), `floor-checks.md` (the two checks that hold the 3.6.8 floor), `deny-term-resolution.md` (v0.2.0 design), `ci-term-provisioning.md` (getting a private list onto CI safely), `rejected-pre-commit-git-2.21-backport.md`, `workstation-notes.md`. |
-| the working notes | session handoffs — read the latest one before starting |
-| the working notes | findings about a defect or a decision (create as needed; none yet) |
-| the working notes | the living worklist (create as needed; none yet) |
-
-**A document recording a decision not to do something is prefixed
-`rejected-`.** The point of such a file is to stop the question being
-reopened, and a neutral name defeats that: the reader has to open it to
-learn they did not need to. The prefix puts the verdict in the directory
-listing. The file's own first lines then state the decision and the single
-condition that would reopen it, before any of the reasoning.
-`the backport decision record` is the pattern.
-
-Applies to a settled negative decision, not to an open question leaning
-negative. Something still undecided belongs in open items above, or in
-the working notes, under its own neutral name.
-
-There is no `doc/` at the repo root yet, unlike `a sibling package`. If design
-material grows past what fits in `README.md`, start one rather than
-letting the working notes absorb material that would survive being handed to a
-maintainer with no history on this project — which is also why
-workstation-specific material is kept out of the working notes's main files and
-confined to `workstation-notes.md`.
+Design material intended for maintainers belongs in `README.md`, or in a
+tracked `doc/` if it outgrows it. The test is whether a maintainer with no
+history on this project would still want it; if the answer is no, it is a
+working note, not documentation.
 
 ---
 
@@ -154,14 +137,14 @@ confined to `workstation-notes.md`.
 - **Verify by computing.** Run the test, the `pytest -m packaging` job, the
   `pre-commit validate-manifest`. Do not report a coverage number or a test
   count from memory — read it off the actual run. **Running something is
-  necessary and not sufficient**: read `the verification-discipline notes`
-  before claiming anything is verified. It records the failure shapes this
+  necessary and not sufficient**: read the verification-discipline notes
+  before claiming anything is verified. They record the failure shapes this
   project has actually produced — assertions that a broken implementation
   would also satisfy, untested cells of an environment cross-product,
   limitations inferred rather than tried, and summaries stated at a coarser
   grain than the work. Four defects reached `main` in one session through
   those, every one of them while "verify by computing" was being followed.
-  For the 3.6.8 floor specifically, `the floor-check notes` gives the two
+  For the 3.6.8 floor specifically, the floor-check notes give the two
   checks needed and why running the suite is not one of them on its own.
 - **Ask clarifying questions before detailed answers or large changes;**
   state assumptions when proceeding unattended. Do not re-ask something
@@ -170,7 +153,7 @@ confined to `workstation-notes.md`.
   commit messages. Banned-word list, prose over bullets, at most two em
   dashes per thousand words, norm stated first and exception second.
   Exempt: AI-instruction files, meaning this file, `CLAUDE.md`, and
-  `the workstation notes`.
+  the working notes.
 - **Code comments are minimal.** Explain the non-obvious choice, not the
   obvious mechanism. Docstring bloat gets trimmed on sight.
 - `pre-commit install` once per clone, on a machine whose git is new enough
@@ -193,8 +176,8 @@ confined to `workstation-notes.md`.
   `https://github.com/phdye/git-hygiene` (public, created 2026-08-16) and
   CI run #1 on `7182367` passed clean - lint, `packaging` (the `pre-commit
   try-repo` job that has never once succeeded locally, per
-  `the backport decision record` and the `core.worktree`
-  finding in the working notes), and the full test matrix across Python 3.9
+  the backport decision record and the `core.worktree` finding), and the
+  full test matrix across Python 3.9
   through 3.13. `origin` is now this repo over SSH.
 - **`tests/` is now 3.6.8-clean, decided and done.** No `from __future__
   import annotations`, no runtime PEP 585/604 generics, no
@@ -210,7 +193,7 @@ confined to `workstation-notes.md`.
   assuming `pip install -e .` was run, so it passed there too without any
   package installed under that interpreter.
 - **v0.2.0 deny-term resolution is built.** `src/git_hygiene/resolution.py`
-  implements the layered, classified model in `the deny-term resolution design`;
+  implements the layered, classified model from the design notes;
   `terms.py` is now primitives beneath it (`compile_term`, `scan_text`,
   `report`, git helpers) and carries no layering knowledge. One deliberate
   deviation from the design, recorded at the top of that doc: loud-absence
@@ -223,5 +206,5 @@ confined to `workstation-notes.md`.
   `audit-tree --objects` performance against a large history remains
   unmeasured (a pre-existing gap, now with more per-hit work), and
   `.pre-commit-hooks.yaml` descriptions still describe the v0.1 behavior.
-- Anything larger than a line gets its own file under the working notes and is
+- Anything larger than a line gets its own file in the working notes and is
   referenced from here.

@@ -173,7 +173,8 @@ materialized to a runner-local temp file for the job's lifetime, with
 `GIT_DENY_TERMS` pointed at it - no git-hygiene code involved, since
 `report()` already withholds a private term from output by default. Full
 writeup, including an encrypted-blob variant for sharing one list across
-many repos and a self-hosted-runner variant: `the CI provisioning notes`.
+many repos and a self-hosted-runner variant, is demonstrated end to end
+in the example repository below.
 
 A working example lives at
 [phdye/git-hygiene-ci-demo](https://github.com/phdye/git-hygiene-ci-demo).

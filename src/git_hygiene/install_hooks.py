@@ -6,8 +6,9 @@ which arrived in git 2.31, so it cannot run at all on anything older.
 Current distributions are comfortably past that - RHEL 8.10 ships git
 2.43 - so this is a fallback for genuinely old git rather than the
 primary path, and for environments where the framework cannot be
-installed. See `the backport decision record` for why
-that gap is not patched in `pre-commit` itself. Consumers on git 2.31 or
+installed. Emulating the missing flag inside `pre-commit` itself was
+considered and declined, on the grounds that patching another project's
+tool in the consumer's environment is worse than shipping this. Consumers on git 2.31 or
 newer should prefer the framework path documented in README.md.
 
 Each installed hook is a short POSIX shell shim that calls this
@@ -90,7 +91,7 @@ def install_one(hooks_dir: Path, hook_name: str, force: bool, dry_run: bool) -> 
     # breaking every commit, clean or dirty. The dev interpreter here IS
     # Windows Python, so that is the normal path, not an edge case.
     # Path.write_text grew newline= only in 3.10 and the floor is 3.6.8,
-    # so bytes is the portable fix. See the CRLF issue report.
+    # so bytes is the portable fix.
     target.write_bytes(render(hook_name).encode("utf-8"))
     target.chmod(0o755)
     return Result(f"wrote   {hook_name}", True)

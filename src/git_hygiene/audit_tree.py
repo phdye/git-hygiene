@@ -10,8 +10,8 @@ removed from the working tree survives in history until the history
 itself is rewritten, and `git log -S` alone will not show it in a
 deleted blob.
 
-Term resolution is layered and classified as of v0.2.0 - see
-the deny-term resolution design. The resolution summary always prints,
+Term resolution is layered and classified as of v0.2.0. The
+resolution summary always prints,
 even without --explain: this is a pre-publish gate, and whether it
 audited against zero terms is the entire question being asked of it.
 """

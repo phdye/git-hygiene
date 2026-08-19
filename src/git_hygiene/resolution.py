@@ -1,8 +1,9 @@
 """Layered, classified deny-term resolution - v0.2.0.
 
-Design: the deny-term resolution design. That document is authoritative;
-this module implements it. Read it before changing precedence, class
-rules, or negation authorization - those are decided there, not here.
+The layered/classified model is specified in the project's design
+notes, which remain authoritative; this module implements them. Read
+them before changing precedence, class rules, or negation
+authorization - those are decided there, not here.
 
 Terms live in files sitting on a spectrum from "system-wide and never
 committed" to "the team's own tracked list", and previously only the
@@ -190,7 +191,7 @@ def _expected_class_from_name(path: Path) -> Optional[str]:
     Only applies to --terms / GIT_DENY_TERMS: an auto-probed candidate
     like the repo-root .deny-terms is optional by nature (most repos
     will never have one) and stays silent-absent regardless of name,
-    matching every other layer's default. See the project instructions."""
+    matching every other layer's default."""
     if path.name == ".deny-terms":
         return "public"
     if path.name == ".deny-terms.private":

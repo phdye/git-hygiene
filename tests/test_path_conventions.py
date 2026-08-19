@@ -2,15 +2,14 @@
 
 git reports paths in *its* convention; the running interpreter needs
 them in *its own*. Under Cygwin git plus a native Windows interpreter
-those differ, and the consequences are covered here. See
-the path-convention issue report.
+those differ, and the consequences are covered here.
 
 These tests pass trivially where the two conventions coincide (Linux
 CI, an all-Cygwin install, an all-Windows install). They are written so
 that they fail loudly in the cell where they do not - which is exactly
 the cell that shipped broken twice.
 
-Kept 3.6.8-clean like the rest of tests/ - see the floor-check notes.
+Kept 3.6.8-clean like the rest of tests/.
 """
 
 import os

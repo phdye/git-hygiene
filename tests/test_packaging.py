@@ -12,14 +12,14 @@ an installed hook. That is exactly the gap this closes.
 Marked `packaging` and deselected by default: it builds a virtualenv,
 so it is slow. Run it in CI and before tagging a release.
 
-Kept 3.6.8-clean like the rest of tests/ - see the project instructions.
+Kept 3.6.8-clean like the rest of tests/.
 No `from __future__ import annotations`, no runtime `tuple[int, ...]`
 (a 3.9+ subscript; given as a type comment instead), no
 `capture_output=` (3.7+). These tests skip themselves below the git
 floor they need regardless (MIN_GIT), so this is about the test file
 being importable and collectible on 3.6.8, not about the packaging
 path itself working there - it can't, by design; see the module this
-mirrors, the backport decision record.
+mirrors: the framework path is inherently a >= 2.31 concern.
 """
 
 import re
@@ -43,8 +43,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 # scripts directly and needs no framework. These tests cover the
 # framework path only, which is inherently a >= 2.31 concern.
 #
-# See the backport decision record for why the missing
-# flag is not emulated even though it could be. That decision is closed,
+# Emulating the missing flag was considered and declined. That
+# decision is closed,
 # and since the 2019-snapshot git that prompted it has been replaced by
 # 2.43, the question no longer arises here at all.
 MIN_GIT = (2, 31)

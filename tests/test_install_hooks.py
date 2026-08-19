@@ -2,7 +2,7 @@
 `.git/hooks/` shims that need no `pre-commit` framework, which is what
 covers git older than the framework's own 2.31 requirement.
 
-Kept 3.6.8-clean like the rest of tests/ - see the project instructions.
+Kept 3.6.8-clean like the rest of tests/.
 No `from __future__ import annotations`, no runtime
 `subprocess.CompletedProcess[str]` subscript (a type comment instead),
 no `capture_output=` (3.7+).
@@ -142,8 +142,7 @@ def _make_check_identifiers_shim(bin_dir):
     """A portable stand-in for the installed console script, so this
     test needs nothing beyond the interpreter already running it - not
     a `pip install -e .`, which may not have been done (it has not, on
-    the rhel root's Python, by design - see the project instructions on
-    that interpreter's floor being fixed at 3.6.9). Forward slashes in
+    the floor interpreter, which is pinned by design). Forward slashes in
     the interpreter path so the shim also runs under Git for Windows'
     bundled bash, which invokes any shebang-bearing file in
     .git/hooks/ through its own sh regardless of the NTFS exec bit."""
@@ -187,7 +186,7 @@ def test_installed_hook_actually_blocks_a_commit(repo, terms, tmp_path):
     # A hook that REFUSES and a hook that CRASHES both give a non-zero rc
     # and an empty log, so the two assertions above cannot tell them
     # apart - a completely broken hook satisfies them. Assert on what the
-    # hook actually said. See the CRLF issue report.
+    # hook actually said.
     assert "BLOCKED" in r.stderr, r.stderr
     assert "syntax error" not in r.stderr, r.stderr
 

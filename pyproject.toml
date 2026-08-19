@@ -16,7 +16,7 @@ requires-python = ">=3.6.8"
 # live against Cygwin's RHEL-8.10 emulation (python 3.6.9): no
 # `from __future__ import annotations`, no PEP 604/585 generics at
 # runtime (typing.List/Optional/Pattern instead), no capture_output=
-# (3.7+) on subprocess.run. See the project instructions.
+# (3.7+) on subprocess.run.
 #
 # No runtime dependencies, deliberately. A pre-commit hook that pulls a
 # dependency tree is a hook that breaks in someone else's environment.
