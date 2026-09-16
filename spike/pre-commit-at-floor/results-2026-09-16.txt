@@ -1,9 +1,9 @@
-script      pre-commit-at-floor 1.0
-date        2026-09-16T21:40:44Z
+script      pre-commit-at-floor 1.1
+date        2026-09-16T22:44:15Z
 host        CYGWIN_NT-10.0 3.0.7(0.338/5/3)
 python      Python 3.6.9
 git         git version 2.43.7
-source_ref  c93c6bf
+source_ref  674d220
 
 interpreter_series=floor
 inputs_verified=yes
@@ -18,5 +18,9 @@ filemode_true_recorded_mode=100755
 filemode_false_first_commit=landed
 filemode_false_second_commit=not-needed
 filemode_false_recorded_mode=100755
+filemode_true_both_first_commit=landed
+filemode_true_both_recorded_modes=100755 
+filemode_true_both_partial_commit=staged half only
+filemode_true_both_partial_worktree=unstaged half kept
 
-verdict=pre-commit 2.17.0 runs these hooks only when the manifest admits 2.17.0
+verdict=pre-commit 2.17.0 runs these hooks only when the manifest admits 2.17.0; a mode fix that sets both modes lands on the first commit
