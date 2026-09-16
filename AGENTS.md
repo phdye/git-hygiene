@@ -46,11 +46,12 @@ one; do not build role machinery here speculatively.
    the mistake, regardless of what the example file contains.
 
 3. **Two behaviors are load-bearing, not stylistic — do not "simplify"
-   them.** The tool reports a file and line but never the matched term,
-   since printing it would recreate the leak in scrollback, CI logs, and
-   pasted error reports. And it matches on word boundaries, since substring
-   matching fires on ordinary API names and a guard that cries wolf gets
-   switched off. Both have tests.
+   them.** A term from a private source is never printed unless the caller
+   asks, and `--explain` never prints a term at all, since printing one
+   would recreate the leak in scrollback, CI logs, and pasted error
+   reports (decision 0006). And it matches on word boundaries, since
+   substring matching fires on ordinary API names and a guard that cries
+   wolf gets switched off (decision 0003). Both have tests.
 
 4. **Silent pass when no term file exists is deliberate, not a bug.**
    Anyone cloning a public repo will not have
@@ -63,36 +64,17 @@ one; do not build role machinery here speculatively.
 
 ---
 
-## The open blocker: pre-commit cannot run against an old git
+## Old git and the framework
 
-**`pre-commit` 4.6.2 will not run against git 2.21**, and the oldest git
-available in this project's own test environment is 2.21.0 (`git ls-files
--z --deduplicate` fails there with `error: unknown option 'deduplicate'`;
-`--deduplicate` arrived in git 2.31). See the working notes for
-why that particular old version is what gets tested against here.
+`pre-commit` needs git 2.31 or newer. Older git, and hosts where the
+framework cannot be installed, are served by `install-hooks`, which writes
+native shims; the framework is deliberately not patched. Decision 0008 has
+the measurements and the one condition that reopens it. Do not re-decide
+this without reading it.
 
-This code's own git usage is 2.21-clean (`diff --cached`, `show`,
-`ls-files`, `cat-file --batch-all-objects --batch-check`, `log --all
---format` — all predate 2.21). The 19 end-to-end tests create real
-repositories and drive real git directly, not through `pre-commit`, and
-they pass under 2.21. Only the `pre-commit` runner itself is the
-incompatible piece.
-
-Recorded options, none chosen yet (the working notes have the full
-reasoning): pin an old `pre-commit` where git is old; ship a plain
-`.git/hooks/pre-commit` shim calling the console scripts directly, needing
-no `pre-commit` at all; treat `audit-tree` as a manual pre-publish gate on
-old-git machines; or run these hooks only where git is modern and treat an
-old-git environment as a deployment target, not a development one. Read
-the handoff before picking one — do not re-decide this from scratch
-without it.
-
-`pre-commit try-repo` has never actually succeeded against the old-git
-test environment: the git version blocked it first, then a different git
-installation on the same machine produced `bad pack header` cloning a
-repo it had created. Neither failure is a defect in this code. The CI
-`packaging` job (current git, `ubuntu-latest`) is the only place this has
-been proven, and prove it there before trusting a local `try-repo` run.
+The CI `packaging` job (current git, `ubuntu-latest`) is the only place
+`pre-commit try-repo` has been proven. Prove it there before trusting a
+local `try-repo` run.
 
 ---
 
@@ -104,15 +86,17 @@ been proven, and prove it there before trusting a local `try-repo` run.
 | `tests/` | unit and end-to-end by default; `pytest -m packaging` needs a real `pre-commit` install and is slow. |
 | `.pre-commit-hooks.yaml` | the public hook manifest — `deny-terms`, `deny-terms-msg`, `audit-tree`. |
 | `.github/workflows/` | lint, test matrix, packaging job. CI runs on `ubuntu-latest` with a current git and is unaffected by the old-git blocker above. |
-| `doc/design/proposal/` | change proposals, tracked, one per file, named `<YYYY-MM-DD>.<topic>.md`. A proposal carries a status line and is kept when abandoned, never deleted. |
+| `doc/design/` | the specification, kept current: `Architecture.md` (what the package is) and `Verification-Plan.md` (how each claim is proven). |
+| `doc/design/decisions/` | decision records, numbered, append-only, listed one-to-one in `index.md`; `tests/test_design_docs.py` enforces the listing. |
+| `doc/proposal/` | change proposals, one per file, named `<YYYY-MM-DD>.<topic>.md`. A proposal carries a status line and is kept when abandoned, never deleted. |
 
-`doc/design/proposal/` is a deliberate exception to the working-notes rule
-below: a proposal is addressed to a maintainer deciding whether to accept it,
-outlives the session that wrote it, and is cited by whatever it leads to.
-Decision records and session handoffs stay outside version control.
+The design tree is tracked (decision 0001). A change that alters behavior
+amends `doc/design/` in the same commit; a settled question gets a new
+record and an index row; a substantial or hard-to-undo change starts as a
+proposal and waits for acceptance before any code.
 
-Working notes — designs, decision records, issue write-ups, session
-handoffs, the worklist — are kept **outside version control** and are
+Working notes — drafts, issue write-ups, session handoffs, the
+worklist — are kept **outside version control** and are
 deliberately not part of this repository or its history. They are local
 to a working copy and are covered by a global ignore rule, so they never
 reach a clone, a release artifact, or a published commit. Their layout and
@@ -120,10 +104,11 @@ filing conventions are documented with the notes themselves rather than
 here, so that this file stays about the project rather than about how one
 workstation is arranged.
 
-Design material intended for maintainers belongs in `README.md`, or in a
-tracked `doc/` if it outgrows it. The test is whether a maintainer with no
-history on this project would still want it; if the answer is no, it is a
-working note, not documentation.
+Design material intended for maintainers belongs under `doc/`; `README.md`
+is for the person installing the hooks. The test is whether a maintainer
+with no history on this project would still want it; if the answer is no,
+it is a working note, not documentation. A working note that passes the test
+is rewritten for that reader and filed under `doc/`, never cited in place.
 
 ---
 
@@ -134,23 +119,21 @@ working note, not documentation.
   one logical phase per commit, no `Co-Authored-By`. Where a session is
   running through a tool bridge that mangles inline `-m`, commit via
   `git commit -F <tempfile>` instead; a native shell can use `-m` normally.
-- **Design-first.** Update `README.md` or the governing decision doc in the
-  same change, first or alongside the code, never after. For this repo the
-  README *is* the design doc — it is small enough that a separate
-  `doc/Design.md` would just duplicate it.
+- **Design-first.** Update `doc/design/` (and `README.md` where users see
+  the change) in the same commit as the code, never after.
 - **Verify against real source at a known ref** (`git show <ref>:path`), not
   memory.
 - **Verify by computing.** Run the test, the `pytest -m packaging` job, the
   `pre-commit validate-manifest`. Do not report a coverage number or a test
   count from memory — read it off the actual run. **Running something is
-  necessary and not sufficient**: read the verification-discipline notes
-  before claiming anything is verified. They record the failure shapes this
+  necessary and not sufficient**: read `doc/design/Verification-Plan.md`
+  before claiming anything is verified. It records the failure shapes this
   project has actually produced — assertions that a broken implementation
   would also satisfy, untested cells of an environment cross-product,
   limitations inferred rather than tried, and summaries stated at a coarser
   grain than the work. Four defects reached `main` in one session through
   those, every one of them while "verify by computing" was being followed.
-  For the 3.6.8 floor specifically, the floor-check notes give the two
+  For the 3.6.8 floor specifically, the same document gives the two
   checks needed and why running the suite is not one of them on its own.
 - **Ask clarifying questions before detailed answers or large changes;**
   state assumptions when proceeding unattended. Do not re-ask something

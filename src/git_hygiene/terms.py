@@ -3,7 +3,7 @@ term-file location convention, and the scan/report step that turns a
 resolved pattern set into pass/fail output.
 
 Resolving *which* term files apply - the layered, classified model
-described in the project's design notes - lives in resolution.py.
+described in doc/design/Architecture.md - lives in resolution.py.
 This module stays beneath that: it does not know about layers,
 classes, or negation. It only knows how to run git, where the legacy
 single term file lives, and how to turn a list of already-resolved
@@ -180,7 +180,7 @@ def git_dir(repo: Path) -> Optional[Path]:
 
 def git_toplevel(start: Optional[Path] = None) -> Optional[Path]:
     """The work tree root, or None outside one. resolution.py's
-    anchor; see the design notes under "Resolve once".
+    anchor; see doc/design/Architecture.md, "Term resolution".
 
     Deliberately NOT `rev-parse --show-toplevel`. That returns an
     absolute path in *git's* convention, and under Cygwin git that is a

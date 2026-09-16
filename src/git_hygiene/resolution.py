@@ -1,9 +1,9 @@
 """Layered, classified deny-term resolution - v0.2.0.
 
-The layered/classified model is specified in the project's design
-notes, which remain authoritative; this module implements them. Read
-them before changing precedence, class rules, or negation
-authorization - those are decided there, not here.
+The layered/classified model is specified in doc/design/Architecture.md
+and decided in doc/design/decisions/, which remain authoritative; this
+module implements them. Read them before changing precedence, class
+rules, or negation authorization - those are decided there, not here.
 
 Terms live in files sitting on a spectrum from "system-wide and never
 committed" to "the team's own tracked list", and previously only the
@@ -16,8 +16,8 @@ An undeclared file defaults to private - the safe direction, and the
 one that keeps every existing ~/.config/git/deny-terms.txt working
 unchanged.
 
-Layers, lowest precedence first (see the module docstring's table in
-the design doc for the full reasoning):
+Layers, lowest precedence first (see doc/design/Architecture.md for the
+table and decision 0004 for the reasoning):
 
     1  /etc/git-hygiene/deny-terms
     2  $XDG_CONFIG_HOME/git/deny-terms.txt, else ~/.config/git/...
@@ -129,7 +129,7 @@ def _parse_terms(path: Path) -> "Tuple[List[str], List[str], Optional[str]]":
 def _trusted(path: Path) -> Tuple[bool, str]:
     """(trusted, reason-if-not). Applies only to the ancestor walk and
     the repo-root layer - files nobody in particular controls, per the
-    design doc's ssh-style posture. On Windows, ownership and world
+    ssh-style posture of decision 0004. On Windows, ownership and world
     writability are not meaningfully checkable through os.stat; this
     degrades to "exists and is readable", not a real guarantee."""
     if os.name != "posix":

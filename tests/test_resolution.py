@@ -1,6 +1,6 @@
 """Layered, classified term resolution - the core of v0.2.0.
 
-Proves the design recorded in the project's design notes. Kept
+Proves the design in doc/design/Architecture.md. Kept
 3.6.8-clean like the rest of tests/.
 """
 
