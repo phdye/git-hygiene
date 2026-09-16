@@ -1,0 +1,27 @@
+# Pinned inputs for measure.sh, fetched from PyPI into the spike cache and
+# refused on a hash mismatch: pre-commit 2.17.0 and the closure pip resolves
+# for it at Python 3.6, then the build tools the hook environment needs to
+# build this package. PyYAML has no wheel for this platform and comes as an
+# sdist, built without isolation from the setuptools and wheel listed here.
+# file	sha256
+pre_commit-2.17.0-py2.py3-none-any.whl	725fa7459782d7bec5ead072810e47351de01709be838c2ce1726b9591dad616
+cfgv-3.3.1-py2.py3-none-any.whl	c6a0883f3917a037485059700b9e75da2464e6c27051014ad85ba6aaa5884426
+distlib-0.4.3-py2.py3-none-any.whl	4b0ce306c966eb73bc3a7b6abad017c556dadd92c44701562cd528ac7fde4d5b
+filelock-3.4.1-py3-none-any.whl	a4bc51381e01502a30e9f06dd4fa19a1712eab852b6fb0f84fd7cce0793d8ca3
+identify-2.4.4-py2.py3-none-any.whl	aa68609c7454dbcaae60a01ff6b8df1de9b39fe6e50b1f6107ec81dcda624aa6
+importlib_metadata-4.8.3-py3-none-any.whl	65a9576a5b2d58ca44d133c42a241905cc45e34d2c06fd5ba2bafa221e5d7b5e
+importlib_resources-5.2.3-py3-none-any.whl	ae35ed1cfe8c0d6c1a53ecd168167f01fa93b893d51a62cdf23aea044c67211b
+nodeenv-1.6.0-py2.py3-none-any.whl	621e6b7076565ddcacd2db0294c0381e01fd28945ab36bcf00f41c5daf63bef7
+platformdirs-2.4.0-py3-none-any.whl	8868bbe3c3c80d42f20156f22e7131d2fb321f5bc86a2a345375c6481a67021d
+PyYAML-6.0.1.tar.gz	bfdf460b1736c775f2ba9f6a92bca30bc2095067b8a9d77876d1fad6cc3b4a43
+toml-0.10.2-py2.py3-none-any.whl	806143ae5bfb6a3c6e736a764057db0e6a0e05e338b5630894a5f779cabb4f9b
+typing_extensions-4.1.1-py3-none-any.whl	21c85e0fe4b9a155d0799430b0ad741cdce7e359660ccbd8b530613e8df88ce2
+virtualenv-20.16.2-py2.py3-none-any.whl	635b272a8e2f77cb051946f46c60a54ace3cb5e25568228bd6b57fc70eca9ff3
+zipp-3.6.0-py3-none-any.whl	9fe5ea21568a0a70e50f273397638d39b03353731e6cbbb3fd8502a33fec40bc
+pip-21.3.1-py3-none-any.whl	deaf32dcd9ab821e359cd8330786bcd077604b5c5730c0b096eda46f95c24a2d
+setuptools-59.6.0-py3-none-any.whl	4ce92f1e1f8f01233ee9952c04f6b81d1e02939d6e1b488428154974a4d0783e
+setuptools_scm-6.4.2-py3-none-any.whl	acea13255093849de7ccb11af9e1fb8bde7067783450cee9ef7a93139bddf6d4
+wheel-0.37.1-py2.py3-none-any.whl	4bdcd7d840138086126cd09254dc6195fb4fc6f01c050a1d7236f2630db1d22a
+packaging-21.3-py3-none-any.whl	ef103e05f519cdc783ae24ea4e2e0f508a9c99b2d4969652eed6a2e1ea5bd522
+pyparsing-3.1.4-py3-none-any.whl	a6a7ee4235a3f944aa1fa2249307708f893fe5717dc603503c6c7969c070fb7c
+tomli-1.2.3-py3-none-any.whl	e3069e4be3ead9668e21cb9b074cd948f7b3113fd9c8bba083f48247aab8b11c

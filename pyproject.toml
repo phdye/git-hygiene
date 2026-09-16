@@ -1,48 +1,10 @@
 [build-system]
-requires = ["setuptools>=61.0", "setuptools_scm>=8.0", "wheel"]
+# Pinned to the newest releases that still run on Python 3.6.8, the floor
+# (decision 0013). The package has to build on the hosts it protects, and
+# the next release of each tool requires a newer interpreter. setuptools
+# 59.6 cannot read a [project] table, so the metadata lives in setup.cfg.
+requires = ["setuptools==59.6.0", "setuptools_scm[toml]==6.4.2", "wheel==0.37.1"]
 build-backend = "setuptools.build_meta"
-
-[project]
-name = "git-hygiene"
-dynamic = ["version"]
-description = "pre-commit hooks that keep engagement identifiers out of repositories"
-readme = "README.md"
-license = {text = "MIT OR Apache-2.0"}
-authors = [{name = "Philip Dye", email = "phdye@acm.org"}]
-requires-python = ">=3.6.8"
-# Floor is RHEL 8.10's shipped python3 (3.6.8), not a stylistic choice.
-# These hooks have to run on the machines they protect, and that
-# includes RHEL 8.10 targets with nothing newer installed. Verified
-# live against Cygwin's RHEL-8.10 emulation (python 3.6.9): no
-# `from __future__ import annotations`, no PEP 604/585 generics at
-# runtime (typing.List/Optional/Pattern instead), no capture_output=
-# (3.7+) on subprocess.run.
-#
-# No runtime dependencies, deliberately. A pre-commit hook that pulls a
-# dependency tree is a hook that breaks in someone else's environment.
-dependencies = []
-
-[project.scripts]
-check-identifiers = "git_hygiene.check_identifiers:main"
-audit-tree = "git_hygiene.audit_tree:main"
-install-hooks = "git_hygiene.install_hooks:main"
-git-hygiene = "git_hygiene.dispatch:main"
-normalize-file-modes = "git_hygiene.filemode:main"
-
-[project.optional-dependencies]
-dev = [
-    "pytest>=8.0.0",
-    "pytest-cov>=5.0.0",
-    "mypy>=1.9.0",
-    "ruff>=0.4.0",
-    "pre-commit>=3.7.0",
-    # tests/test_sdist.py builds a source distribution in-process.
-    "setuptools>=61.0",
-    "setuptools_scm>=8.0",
-]
-
-[tool.setuptools.packages.find]
-where = ["src"]
 
 [tool.setuptools_scm]
 write_to = "src/git_hygiene/_version.py"
@@ -50,7 +12,7 @@ write_to = "src/git_hygiene/_version.py"
 [tool.ruff]
 line-length = 100
 # py37 is ruff's oldest available target-version; there is no py36.
-# The real floor is 3.6.8 (see requires-python above), so this is a
+# The real floor is 3.6.8 (python_requires in setup.cfg), so this is a
 # ceiling on what ruff can express, not the actual minimum. UP022 on
 # terms.git() is suppressed for the one line that gap affects.
 target-version = "py37"

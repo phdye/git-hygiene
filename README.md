@@ -250,6 +250,12 @@ iteration of this facility passed every unit test and could not run as
 an installed hook, because the entry point pointed at a path that did
 not exist from the consumer's working directory.
 
+The package builds with setuptools 59.6 so that it can be built on Python
+3.6.8, the oldest interpreter it supports. That setuptools does not read a
+`[project]` table, which is why the metadata sits in `setup.cfg`. The `dev`
+extra needs a current Python; at 3.6 install the package alone and use the
+older pytest and mypy that `doc/design/Verification-Plan.md` names.
+
 ## Versioning
 
 Hook ids are a public API. Once someone pins `rev:` and names an id,

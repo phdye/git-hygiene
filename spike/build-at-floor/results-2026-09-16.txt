@@ -1,0 +1,21 @@
+script      build-at-floor 1.0
+date        2026-09-16T21:35:58Z
+host        CYGWIN_NT-10.0 3.0.7(0.338/5/3)
+python      Python 3.6.9
+git         git version 2.43.7
+source_ref  846842d
+
+interpreter_series=floor
+inputs_verified=yes
+original_wheel=refused (no setuptools>=61 release runs on this interpreter)
+pinned_wheel=pass
+wheel_requires_python=floor
+wheel_version=from-git
+wheel_console_scripts=audit-tree check-identifiers install-hooks 
+pinned_sdist=pass
+sdist_contains_spike=no
+install_wheel=pass scripts=run
+install_source=pass scripts=run
+install_editable=pass scripts=run imports_from=source-tree
+
+verdict=pinned builds and installs at the floor; original does not

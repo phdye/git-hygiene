@@ -22,3 +22,6 @@ one-to-one.
 | [0010](0010-every-resolution-setting-has-an-environment-variable.md) | Every resolution setting has an environment variable and a negation | 2026-09-16 |
 | [0011](0011-hashed-term-matching-is-not-pursued.md) | Hashed term matching is not pursued | 2026-09-16 |
 | [0012](0012-one-front-end-dispatches-every-check.md) | One hook front end dispatches every check | 2026-09-16 |
+| [0013](0013-build-tools-run-at-the-floor.md) | Build tools are pinned to releases that run at the floor | 2026-09-16 |
+| [0014](0014-ci-waits-for-a-rhel-8-10-runner.md) | CI is not attempted until a RHEL 8.10 runner exists | 2026-09-16 |
+| [0015](0015-hooks-admit-pre-commit-2-17.md) | The hooks admit pre-commit 2.17.0, the newest release that runs at the floor | 2026-09-16 |

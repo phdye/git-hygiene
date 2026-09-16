@@ -1,0 +1,12 @@
+# Pinned inputs for measure.sh, fetched from PyPI into the spike cache and
+# refused on a hash mismatch. The set is the closure pip resolves at Python
+# 3.6 for the pinned [build-system] requirements, plus the pip that the
+# throwaway venvs are raised to.
+# file	sha256
+setuptools-59.6.0-py3-none-any.whl	4ce92f1e1f8f01233ee9952c04f6b81d1e02939d6e1b488428154974a4d0783e
+setuptools_scm-6.4.2-py3-none-any.whl	acea13255093849de7ccb11af9e1fb8bde7067783450cee9ef7a93139bddf6d4
+wheel-0.37.1-py2.py3-none-any.whl	4bdcd7d840138086126cd09254dc6195fb4fc6f01c050a1d7236f2630db1d22a
+packaging-21.3-py3-none-any.whl	ef103e05f519cdc783ae24ea4e2e0f508a9c99b2d4969652eed6a2e1ea5bd522
+pyparsing-3.1.4-py3-none-any.whl	a6a7ee4235a3f944aa1fa2249307708f893fe5717dc603503c6c7969c070fb7c
+tomli-1.2.3-py3-none-any.whl	e3069e4be3ead9668e21cb9b074cd948f7b3113fd9c8bba083f48247aab8b11c
+pip-21.3.1-py3-none-any.whl	deaf32dcd9ab821e359cd8330786bcd077604b5c5730c0b096eda46f95c24a2d

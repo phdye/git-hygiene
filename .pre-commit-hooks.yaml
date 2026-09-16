@@ -4,7 +4,8 @@
 # semantics as major.
 #
 # This file must be a plain list - minimum_pre_commit_version is a
-# per-hook key, not a top-level one.
+# per-hook key, not a top-level one. 2.17.0 is the newest pre-commit that
+# installs on Python 3.6 (decision 0015); do not raise it casually.
 
 - id: deny-terms
   name: no engagement identifiers in content
@@ -16,7 +17,7 @@
   language: python
   pass_filenames: false
   always_run: true
-  minimum_pre_commit_version: "3.2.0"
+  minimum_pre_commit_version: "2.17.0"
 
 - id: deny-terms-msg
   name: no engagement identifiers in commit message
@@ -26,7 +27,7 @@
   entry: check-identifiers --message
   language: python
   stages: [commit-msg]
-  minimum_pre_commit_version: "3.2.0"
+  minimum_pre_commit_version: "2.17.0"
 
 - id: audit-tree
   name: audit whole repository for engagement identifiers
@@ -38,4 +39,4 @@
   pass_filenames: false
   always_run: true
   stages: [manual]
-  minimum_pre_commit_version: "3.2.0"
+  minimum_pre_commit_version: "2.17.0"

@@ -2,7 +2,7 @@
 
 Unit tests prove the logic. Only this proves the packaging - that
 .pre-commit-hooks.yaml is valid, that the console scripts declared in
-pyproject.toml exist under the name the hooks invoke, and that
+setup.cfg exist under the name the hooks invoke, and that
 pre-commit can build an environment from this repository.
 
 An earlier iteration of this facility used `language: system` with a
@@ -10,7 +10,7 @@ relative script path. It passed every unit test and could not run as
 an installed hook. That is exactly the gap this closes.
 
 Marked `packaging` and deselected by default: it builds a virtualenv,
-so it is slow. Run it in CI and before tagging a release.
+so it is slow. Run it before tagging a release.
 
 Kept 3.6.8-clean like the rest of tests/.
 No `from __future__ import annotations`, no runtime `tuple[int, ...]`
@@ -75,11 +75,21 @@ needs_tooling = pytest.mark.skipif(
 )
 
 
+def validate_manifest_command():
+    # type: () -> list
+    # pre-commit 2.17.0, the newest that installs at the 3.6 floor, has only
+    # the standalone script; the subcommand arrived in 2.19.0 and the script
+    # was removed in 3.0.0.
+    if shutil.which("pre-commit-validate-manifest"):
+        return ["pre-commit-validate-manifest"]
+    return ["pre-commit", "validate-manifest"]
+
+
 @needs_tooling
 def test_hooks_file_is_valid():
     # type: () -> None
     r = subprocess.run(  # noqa: UP022
-        ["pre-commit", "validate-manifest", str(REPO_ROOT / ".pre-commit-hooks.yaml")],
+        validate_manifest_command() + [str(REPO_ROOT / ".pre-commit-hooks.yaml")],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         universal_newlines=True,  # noqa: UP021 - text= is also 3.7+ only

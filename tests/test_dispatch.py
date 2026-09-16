@@ -123,7 +123,7 @@ def test_existing_hook_ids_and_console_scripts_are_unchanged():
     ]
     assert "entry: check-identifiers --staged" in manifest
     assert "entry: check-identifiers --message" in manifest
-    project = (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    project = (REPO_ROOT / "setup.cfg").read_text(encoding="utf-8")
     for name, target in (
         ("check-identifiers", "git_hygiene.check_identifiers:main"),
         ("audit-tree", "git_hygiene.audit_tree:main"),
@@ -131,7 +131,7 @@ def test_existing_hook_ids_and_console_scripts_are_unchanged():
         ("git-hygiene", "git_hygiene.dispatch:main"),
         ("normalize-file-modes", "git_hygiene.filemode:main"),
     ):
-        assert f'{name} = "{target}"' in project
+        assert f"{name} = {target}" in project
     assert set(CONSOLE_SCRIPTS) <= {
         "git-hygiene",
         "check-identifiers",

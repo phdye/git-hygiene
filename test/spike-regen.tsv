@@ -1,0 +1,17 @@
+# Spike regeneration manifest, read by test/spike-regen.sh.
+#
+# Columns, TAB-separated:
+#   dir         directory under spike/
+#   needs       an input path that must exist for the rerun to be possible
+#               (- when none, SKIP to list the spike but not run it)
+#   transcript  a glob under spike/dir naming the committed transcript this
+#               command regenerates; the newest match by name is compared
+#   command     run from inside the spike directory, transcript on stdout
+#
+# Both spikes here fetch their own pinned inputs and need the RHEL 8.10
+# replica's python3, so run the certification there.
+#
+# dir<TAB>needs<TAB>transcript<TAB>command
+pre-commit-python-floor	-	results-2026-[0-9]*.txt	python3 check-floor.py
+build-at-floor	-	results-2026-[0-9]*.txt	bash measure.sh
+pre-commit-at-floor	-	results-2026-[0-9]*.txt	bash measure.sh

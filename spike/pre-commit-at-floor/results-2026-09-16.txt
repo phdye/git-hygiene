@@ -1,0 +1,22 @@
+script      pre-commit-at-floor 1.0
+date        2026-09-16T21:40:44Z
+host        CYGWIN_NT-10.0 3.0.7(0.338/5/3)
+python      Python 3.6.9
+git         git version 2.43.7
+source_ref  c93c6bf
+
+interpreter_series=floor
+inputs_verified=yes
+install_pre_commit=pass version=2.17.0
+min_3_2_0_clean=refused (hook requires a newer pre-commit)
+min_3_2_0_planted=refused (hook requires a newer pre-commit)
+min_2_17_0_clean=passed
+min_2_17_0_planted=blocked by the hook
+filemode_true_first_commit=refused (files were modified by this hook)
+filemode_true_second_commit=landed
+filemode_true_recorded_mode=100755
+filemode_false_first_commit=landed
+filemode_false_second_commit=not-needed
+filemode_false_recorded_mode=100755
+
+verdict=pre-commit 2.17.0 runs these hooks only when the manifest admits 2.17.0

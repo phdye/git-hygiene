@@ -22,17 +22,18 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 def _have_build_backend():
     # type: () -> bool
+    # Any setuptools reads setup.cfg, so only presence matters.
     try:
-        import setuptools
+        import setuptools  # noqa: F401
         import setuptools_scm  # noqa: F401
     except ImportError:
         return False
-    return int(setuptools.__version__.split(".")[0]) >= 61
+    return True
 
 
 needs_backend = pytest.mark.skipif(
     not _have_build_backend(),
-    reason="needs setuptools>=61 and setuptools_scm in this interpreter (the dev extra)",
+    reason="needs setuptools and setuptools_scm in this interpreter (the dev extra)",
 )
 
 

@@ -79,9 +79,22 @@ native shims; the framework is deliberately not patched. Decision 0008 has
 the measurements and the one condition that reopens it. Do not re-decide
 this without reading it.
 
-The CI `packaging` job (current git, `ubuntu-latest`) is the only place
-`pre-commit try-repo` has been proven. Prove it there before trusting a
-local `try-repo` run.
+## CI is set aside
+
+No CI until a RHEL 8.10 (Cygwin) runner exists; decision 0014. Do not treat
+a CI result as verification, and do not shape a change to keep
+`.github/workflows/ci.yml` green. The only `pre-commit try-repo` success on
+record is CI run #1 (2026-08-16); the packaging gate must be re-established
+on the replica before the next tag.
+
+## Build tools are pinned to the floor
+
+`[build-system]` pins setuptools 59.6.0, setuptools_scm 6.4.2 and wheel
+0.37.1, the newest releases that run on Python 3.6.8; decision 0013. Package
+metadata lives in `setup.cfg`, because that setuptools ignores a `[project]`
+table. Never reintroduce `[project]` or raise these pins while the floor is
+3.6. After touching either file, build and install at the floor
+(`Verification-Plan.md`, "Floor, build").
 
 ---
 
@@ -92,9 +105,12 @@ local `try-repo` run.
 | `src/git_hygiene/` | the library: term loading, scanning, reporting, and the three console scripts (`check-identifiers`, `audit-tree`, `install-hooks`). |
 | `tests/` | unit and end-to-end by default; `pytest -m packaging` needs a real `pre-commit` install and is slow. |
 | `.pre-commit-hooks.yaml` | the public hook manifest — `deny-terms`, `deny-terms-msg`, `audit-tree`. |
-| `.github/workflows/` | lint, test matrix, packaging job. CI runs on `ubuntu-latest` with a current git and is unaffected by the old-git blocker above. |
+| `setup.cfg` | package metadata, console scripts, extras (decision 0013). `pyproject.toml` holds the build pins and tool configuration. |
+| `.github/workflows/` | lint, test matrix, packaging job on `ubuntu-latest`. Set aside; see "CI is set aside" above. |
 | `doc/design/` | the specification, kept current: `Architecture.md` (what the package is) and `Verification-Plan.md` (how each claim is proven). |
 | `doc/design/decisions/` | decision records, numbered, append-only, listed one-to-one in `index.md`; `tests/test_design_docs.py` enforces the listing. |
+| `spike/<question>/` | one measurement per directory: a script, pinned inputs, dated `results-*.txt` transcripts. Never shipped (`MANIFEST.in`). |
+| `test/spike-regen.tsv`, `test/spike-regen.sh` | the spike register and the runner that certifies every spike still reproduces. Run on the replica. |
 | `doc/proposal/` | change proposals, one per file, named `<YYYY-MM-DD>.<topic>.md`. A proposal carries a status line and is kept when abandoned, never deleted; a withdrawn one moves to `doc/proposal/retired/`. |
 
 The design tree is tracked (decision 0001). A change that alters behavior
@@ -175,7 +191,8 @@ is rewritten for that reader and filed under `doc/`, never cited in place.
   try-repo` job that has never once succeeded locally, per
   the backport decision record and the `core.worktree` finding), and the
   full test matrix across Python 3.9
-  through 3.13. `origin` is now this repo over SSH.
+  through 3.13. `origin` is now this repo over SSH. CI has since been set
+  aside (decision 0014), so that run is history, not a standing proof.
 - **`tests/` is now 3.6.8-clean, decided and done.** No `from __future__
   import annotations`, no runtime PEP 585/604 generics, no
   `capture_output=`/`text=` (3.7+ only) - type comments and explicit

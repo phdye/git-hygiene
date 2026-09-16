@@ -8,31 +8,39 @@ code appears to do.
 
 | Gate | Command | Where | Proves |
 |---|---|---|---|
-| Lint | `ruff check .` and `ruff format --check .` | CI, workstation | style and the selected rule sets |
-| Types | `mypy src/git_hygiene` | CI, workstation | ordinary type errors, under `strict` |
-| Suite | `pytest` | CI on 3.9 to 3.13, workstation | logic, and end-to-end behavior against real repositories and real git |
-| Packaging | `pytest -m packaging` | CI | that `pre-commit try-repo` installs and runs the hooks as a consumer would |
-| Manifest | `pre-commit validate-manifest .pre-commit-hooks.yaml` | workstation | that the manifest parses |
+| Lint | `ruff check .` and `ruff format --check .` | workstation | style and the selected rule sets |
+| Types | `mypy src/git_hygiene` | workstation | ordinary type errors, under `strict` |
+| Suite | `pytest` | workstation | logic, and end-to-end behavior against real repositories and real git |
+| Packaging | `pytest -m packaging` with pre-commit 2.17.0 on `PATH` | replica | that `pre-commit try-repo` installs and runs the hooks as a consumer would |
+| Manifest | `pre-commit-validate-manifest .pre-commit-hooks.yaml` (2.17.0; `pre-commit validate-manifest` from 2.19.0) | replica | that the manifest parses |
 | Floor, runtime | the suite under Python 3.6 | workstation | that the code executes at the floor |
 | Floor, static | mypy 0.971 with `--python-version 3.6` | workstation | that the code is written for the floor |
-| Design docs | `pytest tests/test_design_docs.py` | CI, workstation | that the decision index and the records agree |
-| Sdist | `pytest tests/test_sdist.py` | CI, workstation (needs the dev extra's `setuptools_scm`) | that a tagged build ships no `spike/` path |
-| Spike | `python3 spike/pre-commit-python-floor/check-floor.py --compare spike/pre-commit-python-floor/results-2026-09-16.txt` | anywhere with network | that pre-commit's pinned wheel still refuses Python 3.6.8 |
+| Floor, build | `pip wheel`, then install the wheel and the source tree, under Python 3.6 | workstation | that the package builds and installs at the floor |
+| Design docs | `pytest tests/test_design_docs.py` | workstation | that the decision index and the records agree |
+| Sdist | `pytest tests/test_sdist.py` | workstation (needs `setuptools_scm` in the interpreter) | that a tagged build ships no `spike/` path |
+| Spikes | `test/spike-regen.sh` | replica | that every spike a decision cites still reproduces its findings |
+
+CI is not a gate for now. The workflow runs on hosted Linux runners at
+Python 3.9 to 3.13, which is not where these hooks are deployed, and it waits
+for a RHEL 8.10 runner ([0014](decisions/0014-ci-waits-for-a-rhel-8-10-runner.md)).
+The packaging gate moved to the replica, where pre-commit 2.17.0 is the
+newest release that installs
+([0015](decisions/0015-hooks-admit-pre-commit-2-17.md)).
 
 The dispatcher's criteria live in `tests/test_dispatch.py`, the term-class
 reproductions in `tests/test_term_classes.py`. Both drive real commits through
 the installed shims, with every location the package reads outside the
 repository pointed into the test's own directory (`tests/helpers.py`). The
 sdist test skips, with a reason naming the dev extra, on an interpreter
-without `setuptools_scm`; the 3.6 replica is one, so the Windows run is where
-it counts locally.
+without `setuptools_scm`. At the floor, `spike/build-at-floor` covers the
+same property.
 
 Unit tests prove logic; only `try-repo` proves packaging. An earlier version
 of this facility passed every unit test and could not run as an installed
 hook, because its entry point named a path that did not exist from the
 consumer's directory. The packaging gate is required before any tag.
 
-## The floor needs two checks
+## The floor needs three checks
 
 Running the suite at Python 3.6 shows the code runs there. It cannot show
 the code is written for 3.6, because Python never evaluates a quoted
@@ -59,17 +67,27 @@ At 3.6 the available pytest predates `pyproject.toml` support, so
 deselected. They must then skip, and the skip reason must name the missing
 prerequisite. Read the reason, not the count.
 
-GitHub-hosted runners offer no Python 3.6, so neither floor check can run in
-CI. Both run before every tag, and after any change touching annotations,
-`subprocess` calls, or standard-library usage, the three places where
-floor violations have appeared.
+Neither of those builds anything. The suite imports the code straight from
+`src/`, which is how a package that could not be built at 3.6 went unnoticed
+from the first commit: its build requirements named setuptools and
+setuptools_scm releases that need a newer interpreter
+([0013](decisions/0013-build-tools-run-at-the-floor.md)).
+The third check builds a wheel with `pip wheel --no-deps`, installs it into a
+fresh virtual environment, installs the source tree the way the README
+describes, and runs each console script's `--help`. Confirm that the
+version it reports came from git rather than a fallback.
+
+All three run before every tag. The first two also run after any change
+touching annotations, `subprocess` calls, or standard-library usage, the
+places where floor violations have appeared; the third runs after any change
+to `pyproject.toml` or `setup.cfg`.
 
 ## Host platforms
 
-A result from a sandbox or a container does not count. The suite runs in
-three places: a RHEL 8.10-equivalent host at Python 3.6, Windows under a
-native interpreter, CI on Linux. The Windows cell matters because two
-defects lived only there: shims written with CRLF endings, and a POSIX
+A result from a sandbox or a container does not count. The suite runs on a
+RHEL 8.10-equivalent host at Python 3.6. It has also run on Windows under a
+native interpreter and, until CI was set aside, on hosted Linux. The Windows
+cell matters because two defects lived only there: shims written with CRLF endings, and a POSIX
 top-level path from Cygwin git that a Windows interpreter could not use.
 
 ### The cell that ships
@@ -113,3 +131,14 @@ Five questions, asked before a result is reported.
    tests skipped and why, and which interpreter or host did the work?
 
 A test that silently stops running looks exactly like a test that passes.
+
+## Spikes
+
+A decision that rests on how the host or a toolchain behaves cites a spike:
+a script under `spike/<question>/` with its dated transcript beside it,
+registered in `test/spike-regen.tsv`. A transcript states findings as verdict
+words and carries versions and dates in a header. `test/spike-regen.sh`
+reruns each spike and fails one whose findings moved, so run it on the
+replica before a tag and after any change a spike's decision depends on.
+The spikes fetch their inputs from PyPI by pinned hash and need network
+access the first time. `spike/` is kept out of the sdist by `MANIFEST.in`.
