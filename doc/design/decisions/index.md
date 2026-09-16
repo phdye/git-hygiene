@@ -21,3 +21,4 @@ one-to-one.
 | [0009](0009-resolution-errors-are-fatal.md) | Every resolution error is fatal, and a refused private term stays unnamed | 2026-09-16 |
 | [0010](0010-every-resolution-setting-has-an-environment-variable.md) | Every resolution setting has an environment variable and a negation | 2026-09-16 |
 | [0011](0011-hashed-term-matching-is-not-pursued.md) | Hashed term matching is not pursued | 2026-09-16 |
+| [0012](0012-one-front-end-dispatches-every-check.md) | One hook front end dispatches every check | 2026-09-16 |

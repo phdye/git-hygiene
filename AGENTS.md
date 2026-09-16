@@ -60,7 +60,14 @@ one; do not build role machinery here speculatively.
 
 5. **Hook ids are a public API.** `deny-terms`, `deny-terms-msg`,
    `audit-tree`. A consumer pins `rev:` and names an id; renaming one
-   breaks their config.
+   breaks their config. The same holds for the console-script names and
+   for the check ids (`filemode`, `deny-terms`, `deny-terms-msg`) that
+   repositories name in `.git-hygiene`.
+
+6. **A repository setting may never name a program.** `.git-hygiene`
+   and `.git/info/git-hygiene` can enable, disable, require or relax a
+   registered check id, nothing more (decision 0012). Widening that
+   lets a clone run code.
 
 ---
 
@@ -154,7 +161,8 @@ is rewritten for that reader and filed under `doc/`, never cited in place.
 
 - **The native git-hook front end is built.** `install-hooks` (new console
   script, `src/git_hygiene/install_hooks.py`) writes `.git/hooks/pre-commit`
-  and `.git/hooks/commit-msg` shims that call `check-identifiers` directly -
+  and `.git/hooks/commit-msg` shims that call the package directly (since
+  2026-09-16 through the `git-hygiene` dispatcher) -
   no framework, and no dependence on git's own version. Idempotent by
   reseeding, marks
   its own files so a foreign hook is left alone without `--force`, and
@@ -195,5 +203,13 @@ is rewritten for that reader and filed under `doc/`, never cited in place.
   `audit-tree --objects` performance against a large history remains
   unmeasured (a pre-existing gap, now with more per-hit work), and
   `.pre-commit-hooks.yaml` descriptions still describe the v0.1 behavior.
+- **Filename-authoritative classes and the multi-check front end are
+  built** (2026-09-16; decisions 0004/0006 amended, 0012 added; both
+  proposals carry implementation decision logs). `install-hooks` shims
+  now run `git-hygiene run <hook>`. This repository's own `.git/hooks`
+  still holds the removed secrets tool's `pre-commit`; moving it across
+  is the proposal's deliberate one-time migration step and has not been
+  done. The two sibling tools' checks are not yet registered as
+  declarations.
 - Anything larger than a line gets its own file in the working notes and is
   referenced from here.

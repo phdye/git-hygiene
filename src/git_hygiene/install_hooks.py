@@ -1,55 +1,45 @@
-"""Install git-hygiene's hooks directly into a repository's
+"""Install git-hygiene's hook shims directly into a repository's
 `.git/hooks/`, with no `pre-commit` framework involved.
 
-Exists because `pre-commit` 4.6.2 calls `git ls-files -z --deduplicate`,
-which arrived in git 2.31, so it cannot run at all on anything older.
-Current distributions are comfortably past that - RHEL 8.10 ships git
-2.43 - so this is a fallback for genuinely old git rather than the
-primary path, and for environments where the framework cannot be
-installed. Emulating the missing flag inside `pre-commit` itself was
-considered and declined, on the grounds that patching another project's
-tool in the consumer's environment is worse than shipping this. Consumers on git 2.31 or
-newer should prefer the framework path documented in README.md.
+Each installed hook is a short POSIX shell shim that runs
+`git-hygiene run <hook>`, found on PATH, and hands it git's arguments.
+The dispatcher decides which checks run (see dispatch.py); the shim holds
+no logic, because it is the one file a package upgrade cannot replace.
 
-Each installed hook is a short POSIX shell shim that calls this
-package's own console scripts (`check-identifiers`), found on PATH
-exactly as the framework path already requires. Nothing here
-duplicates the scanning logic, so a fix to `check-identifiers` reaches
-both fronts the moment the environment is reinstalled.
+A shim is written for pre-commit and commit-msg, which the package's own
+checks use, and for every other hook a registered check declares.
 
 Idempotent by reseeding: every run rewrites a hook file from a fixed
 template rather than editing it in place, so a stale line from an
-earlier version of this installer cannot survive an upgrade. A hook
-file that does not carry this installer's marker comment is assumed to
-belong to someone else and is left alone unless --force is given.
+earlier version cannot survive an upgrade, and a shim this installer
+wrote for a hook no longer in the set is removed. A hook file without
+this installer's marker belongs to someone else and is left alone unless
+--force is given.
 """
 
 import argparse
 import sys
 from pathlib import Path
-from typing import Dict, List, NamedTuple, Optional
+from typing import List, NamedTuple, Optional
 
+from . import checks
+from .gitconfig import ConfigError
 from .terms import git_dir
 
 MARKER = "# managed-by: git-hygiene install-hooks -- do not edit; reinstall to update"
 
 _TEMPLATE = """#!/usr/bin/env bash
 {marker}
-if ! command -v check-identifiers >/dev/null 2>&1; then
-    echo "git-hygiene: check-identifiers not found on PATH; hook cannot run" >&2
-    echo "git-hygiene: activate the environment it was installed into, or reinstall" >&2
+if ! command -v git-hygiene >/dev/null 2>&1; then
+    echo "git-hygiene: git-hygiene is not on PATH; the {hook} hook cannot run" >&2
+    echo "git-hygiene: activate the environment it was installed into, or reinstall;" >&2
+    echo "git-hygiene: refusing, since a check that did not run has not passed" >&2
     exit 1
 fi
-exec check-identifiers {args}
+exec git-hygiene run {hook} "$@"
 """
 
-# One shim per git hook stage this project covers. commit-msg receives
-# the message file path as $1 - that is git's own calling convention,
-# not something this tool invents.
-HOOKS: Dict[str, str] = {
-    "pre-commit": "--staged",
-    "commit-msg": '--message "$1"',
-}
+BASE_HOOKS = ("pre-commit", "commit-msg")
 
 
 class Result(NamedTuple):
@@ -57,8 +47,17 @@ class Result(NamedTuple):
     ok: bool
 
 
+def hook_names() -> List[str]:
+    """The hooks to install: the package's own, plus any a registered
+    check declares. Raises ConfigError on a bad declaration."""
+    names = set(BASE_HOOKS)
+    for check in checks.registry().values():
+        names.update(check.hooks)
+    return sorted(names)
+
+
 def render(hook_name: str) -> str:
-    return _TEMPLATE.format(marker=MARKER, args=HOOKS[hook_name])
+    return _TEMPLATE.format(marker=MARKER, hook=hook_name)
 
 
 def owned_by_us(path: Path) -> bool:
@@ -88,30 +87,36 @@ def install_one(hooks_dir: Path, hook_name: str, force: bool, dry_run: bool) -> 
     # Windows every \n in _TEMPLATE becomes \r\n on disk. Cygwin bash
     # does not strip those, reads `fi\r` as a command name, and the
     # unclosed `if` fails with "syntax error: unexpected end of file" -
-    # breaking every commit, clean or dirty. The dev interpreter here IS
-    # Windows Python, so that is the normal path, not an edge case.
-    # Path.write_text grew newline= only in 3.10 and the floor is 3.6.8,
-    # so bytes is the portable fix.
+    # breaking every commit, clean or dirty. Path.write_text grew
+    # newline= only in 3.10 and the floor is 3.6.8, so bytes is the
+    # portable fix.
     target.write_bytes(render(hook_name).encode("utf-8"))
     target.chmod(0o755)
     return Result(f"wrote   {hook_name}", True)
 
 
-def uninstall_one(hooks_dir: Path, hook_name: str, dry_run: bool) -> Result:
+def remove_one(hooks_dir: Path, hook_name: str, dry_run: bool, why: str = "") -> Result:
     target = hooks_dir / hook_name
     if not target.is_file() or not owned_by_us(target):
         return Result(f"skip    {hook_name}  (not managed by git-hygiene)", True)
+    suffix = f"  ({why})" if why else ""
     if dry_run:
-        return Result(f"remove  {hook_name}  (dry run)", True)
+        return Result(f"remove  {hook_name}  (dry run){suffix}", True)
     target.unlink()
-    return Result(f"removed {hook_name}", True)
+    return Result(f"removed {hook_name}{suffix}", True)
+
+
+def managed_hooks(hooks_dir: Path) -> List[str]:
+    if not hooks_dir.is_dir():
+        return []
+    return sorted(p.name for p in hooks_dir.iterdir() if p.is_file() and owned_by_us(p))
 
 
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Install git-hygiene's pre-commit and commit-msg hooks directly "
-            "into .git/hooks - no pre-commit framework, works on any git."
+            "Install git-hygiene's hook shims directly into .git/hooks - no "
+            "pre-commit framework. Each shim runs `git-hygiene run <hook>`."
         ),
     )
     parser.add_argument("repo", nargs="?", default=".", help="repository path (default: cwd)")
@@ -131,7 +136,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         "-u",
         "--uninstall",
         action="store_true",
-        help="remove git-hygiene-managed hooks instead of installing them",
+        help="remove every git-hygiene-managed hook instead of installing",
     )
     args = parser.parse_args(argv)
 
@@ -143,11 +148,20 @@ def main(argv: Optional[List[str]] = None) -> int:
     hooks_dir = dir_for_hooks / "hooks"
 
     results: List[Result] = []
-    for hook_name in HOOKS:
-        if args.uninstall:
-            results.append(uninstall_one(hooks_dir, hook_name, args.dry_run))
-        else:
-            results.append(install_one(hooks_dir, hook_name, args.force, args.dry_run))
+    if args.uninstall:
+        for name in managed_hooks(hooks_dir):
+            results.append(remove_one(hooks_dir, name, args.dry_run))
+    else:
+        try:
+            wanted = hook_names()
+        except ConfigError as exc:
+            sys.stderr.write(f"install-hooks: {exc}\n")
+            return 2
+        for name in wanted:
+            results.append(install_one(hooks_dir, name, args.force, args.dry_run))
+        for name in managed_hooks(hooks_dir):
+            if name not in wanted:
+                results.append(remove_one(hooks_dir, name, args.dry_run, "no check uses it"))
 
     for result in results:
         print(result.line)

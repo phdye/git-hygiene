@@ -16,6 +16,16 @@ code appears to do.
 | Floor, runtime | the suite under Python 3.6 | workstation | that the code executes at the floor |
 | Floor, static | mypy 0.971 with `--python-version 3.6` | workstation | that the code is written for the floor |
 | Design docs | `pytest tests/test_design_docs.py` | CI, workstation | that the decision index and the records agree |
+| Sdist | `pytest tests/test_sdist.py` | CI, workstation (needs the dev extra's `setuptools_scm`) | that a tagged build ships no `spike/` path |
+| Spike | `python3 spike/pre-commit-python-floor/check-floor.py --compare spike/pre-commit-python-floor/results-2026-09-16.txt` | anywhere with network | that pre-commit's pinned wheel still refuses Python 3.6.8 |
+
+The dispatcher's criteria live in `tests/test_dispatch.py`, the term-class
+reproductions in `tests/test_term_classes.py`. Both drive real commits through
+the installed shims, with every location the package reads outside the
+repository pointed into the test's own directory (`tests/helpers.py`). The
+sdist test skips, with a reason naming the dev extra, on an interpreter
+without `setuptools_scm`; the 3.6 replica is one, so the Windows run is where
+it counts locally.
 
 Unit tests prove logic; only `try-repo` proves packaging. An earlier version
 of this facility passed every unit test and could not run as an installed
@@ -39,7 +49,10 @@ so that the generated `_version.py` (which uses a 3.7 import) is left out:
     python3 -m mypy --python-version 3.6 --strict --no-incremental \
         src/git_hygiene/__init__.py src/git_hygiene/terms.py \
         src/git_hygiene/resolution.py src/git_hygiene/check_identifiers.py \
-        src/git_hygiene/audit_tree.py src/git_hygiene/install_hooks.py
+        src/git_hygiene/audit_tree.py src/git_hygiene/install_hooks.py \
+        src/git_hygiene/options.py src/git_hygiene/gitconfig.py \
+        src/git_hygiene/checks.py src/git_hygiene/settings.py \
+        src/git_hygiene/dispatch.py src/git_hygiene/filemode.py
 
 At 3.6 the available pytest predates `pyproject.toml` support, so
 `addopts` is not applied and the packaging tests are collected rather than
@@ -61,7 +74,7 @@ top-level path from Cygwin git that a Windows interpreter could not use.
 
 ### The cell that ships
 
-The native hooks cross three independent choices, and a result on each
+The native hooks cross four independent choices, and a result on each
 axis says nothing about their combination. The combination used on the
 development workstation has to be run as one, with a real `git commit`:
 
@@ -70,6 +83,11 @@ development workstation has to be run as one, with a real `git commit`:
 | Interpreter that writes the hook | native Windows Python |
 | Shell that runs the hook | Cygwin bash |
 | git that runs the commit | Cygwin git |
+| How the dispatcher starts a check | `CreateProcess` on an `.exe` or `.cmd` found through `PATHEXT` |
+
+The last axis is why the test stand-ins for console scripts come in two
+forms: an extensionless shell script for bash to find, and a `.cmd` file for
+the native interpreter to start.
 
 Both defects named above passed every other cell. Check the outcome by what
 the hook printed (`BLOCKED` for a refusal, no `syntax error`, no traceback),

@@ -163,30 +163,32 @@ def _trusted(path: Path) -> Tuple[bool, str]:
     return True, ""
 
 
-def _walk_ancestors(anchor: Path, walk_to: Optional[Path]) -> List[Path]:
-    """Candidate .deny-terms / .deny-terms.private paths from anchor's
-    ancestors, outermost first. Stops at walk_to (if given), $HOME, or
-    a filesystem boundary - never above them."""
+def walk_dirs(anchor: Path, walk_to: Optional[Path]) -> List[Path]:
+    """The ancestor directories the walk probes, innermost first. Stops
+    at walk_to (if given), $HOME, or a filesystem boundary - never above
+    them."""
     home = Path.home()
-    found: List[Path] = []
-    seen = set()
+    dirs: List[Path] = []
     current = anchor.parent
-    while True:
-        if current in seen:
-            break
-        seen.add(current)
-        for name in (PUBLIC_NAME, PRIVATE_NAME):
-            candidate = current / name
-            if candidate.is_file():
-                found.append(candidate)
+    while current not in dirs:
+        dirs.append(current)
         if walk_to is not None and current == walk_to:
             break
-        if current == home:
-            break
-        if current.parent == current:
+        if current == home or current.parent == current:
             break
         current = current.parent
-    found.reverse()  # outermost first
+    return dirs
+
+
+def _walk_ancestors(anchor: Path, walk_to: Optional[Path]) -> List[Path]:
+    """Existing .deny-terms / .deny-terms.private files in anchor's
+    ancestors, outermost first."""
+    found: List[Path] = []
+    for directory in reversed(walk_dirs(anchor, walk_to)):
+        for name in (PUBLIC_NAME, PRIVATE_NAME):
+            candidate = directory / name
+            if candidate.is_file():
+                found.append(candidate)
     return found
 
 

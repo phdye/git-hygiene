@@ -28,7 +28,12 @@ controls.
 | `resolution.py` | Finds every term source, classifies it, merges the terms, and describes the result for `--explain`. |
 | `check_identifiers.py` | Console script `check-identifiers`: `--staged` scans staged blobs, `--message FILE` scans a commit message. |
 | `audit_tree.py` | Console script `audit-tree`: tracked files, all commit messages, and with `--objects` every object in the store. |
-| `install_hooks.py` | Console script `install-hooks`: writes `pre-commit` and `commit-msg` shims into `.git/hooks/` without the framework. |
+| `install_hooks.py` | Console script `install-hooks`: writes hook shims into `.git/hooks/` that run the dispatcher, without the framework. |
+| `gitconfig.py` | Reads git-config syntax through `git config --no-includes`. |
+| `checks.py` | The check registry: built-in declarations, declaration files, validation, run order. |
+| `settings.py` | Which checks are enabled and required, resolved from layered settings. |
+| `dispatch.py` | Console script `git-hygiene`: `run HOOK` runs the selected checks and reads their exit contracts. |
+| `filemode.py` | Console script `normalize-file-modes`: sets staged files' index modes from their content. |
 
 It has no runtime dependencies. A hook that pulls in a dependency
 tree breaks in somebody else's environment, and this one has to run on the
@@ -44,6 +49,11 @@ A consumer pins `rev:` and names one.
 | `deny-terms` | pre-commit | `check-identifiers --staged` |
 | `deny-terms-msg` | commit-msg | `check-identifiers --message` |
 | `audit-tree` | manual | `audit-tree` |
+
+The console scripts are `check-identifiers`, `audit-tree`, `install-hooks`,
+`git-hygiene` and `normalize-file-modes`, and the check ids `filemode`,
+`deny-terms` and `deny-terms-msg` are named in repository settings, so they
+are public on the same terms as the hook ids.
 
 A new hook is a minor version. A renamed hook, or a change to arguments or
 exit semantics, is a major one; the console-script names are public on the
@@ -221,18 +231,156 @@ belongs to something else and `--force` was not given.
 
 ## Hooks without the framework
 
-`pre-commit` needs git 2.31 or newer. `install-hooks` covers older git and
-hosts where the framework cannot be installed
+`pre-commit` needs git 2.31 or newer, and its current release needs Python
+3.10 (`spike/pre-commit-python-floor/`). `install-hooks` covers hosts where
+the framework cannot run
 ([0008](decisions/0008-old-git-gets-native-hooks-not-a-patched-framework.md)).
-Each shim is a short POSIX shell script that finds `check-identifiers` on
-`PATH`, fails loudly when it is absent, and hands over. Shims hold no logic.
-A package upgrade replaces everything except them.
+Each shim is a short POSIX shell script that finds `git-hygiene` on `PATH`,
+refuses the commit when it is absent, and hands over with
+`exec git-hygiene run <hook> "$@"`. Shims hold no logic. A package upgrade
+replaces everything except them.
 
-Every run rewrites the shim from a fixed template. A file lacking the
+A shim is written for `pre-commit` and `commit-msg`, and for any other hook a
+registered check declares. Every run rewrites each shim from a fixed template
+and removes marked shims for hooks no longer in that set. A file lacking the
 installer's marker comment belongs to someone else and is left alone unless
-`--force` is given; `--uninstall` removes only marked files, and `--dry-run`
-writes nothing. The shim is written as bytes, so a Windows interpreter cannot
-turn its line endings into CRLF.
+`--force` is given; `--uninstall` removes every marked file and nothing else,
+and `--dry-run` writes nothing. The shim is written as bytes, so a Windows
+interpreter cannot turn its line endings into CRLF. A registry the installer
+cannot read is a usage error (exit 2).
+
+## One front end for every check
+
+`git-hygiene run [options] HOOK [ARG...]` runs every enabled check whose
+declaration names HOOK, passing git's arguments after the declared ones
+([0012](decisions/0012-one-front-end-dispatches-every-check.md)). `git hygiene
+run` reaches the same program. Options go before HOOK.
+
+| Option | Environment | Effect |
+|---|---|---|
+| `-v`, `--verbose` | `GIT_HYGIENE_VERBOSE` | also report checks that stood down |
+| `-t`, `--terse` | `GIT_HYGIENE_TERSE` | omit the closing "refused by" line |
+| `-d`, `--debug` | `GIT_HYGIENE_DEBUG` | show each command as it is started |
+| `--explain` | | print each check's settings and their origin; run nothing |
+| `--enable ID`, `--disable ID` | `GIT_HYGIENE_ENABLE`, `GIT_HYGIENE_DISABLE` | switch a check on or off |
+| `--require ID`, `--optional ID` | `GIT_HYGIENE_REQUIRE`, `GIT_HYGIENE_OPTIONAL` | set whether it may stand down |
+
+The environment variables take comma- or space-separated ids. Naming one id
+for both halves of a pair in the same layer is a usage error.
+
+### Checks and declarations
+
+A check is a console script plus a declaration. The package declares three:
+
+| id | hook | command | order | notes |
+|---|---|---|---|---|
+| `filemode` | pre-commit | `normalize-file-modes` | 10 | changes the index |
+| `deny-terms` | pre-commit | `check-identifiers --staged --exit-contract 2` | 50 | |
+| `deny-terms-msg` | commit-msg | `check-identifiers --exit-contract 2 --message` | 50 | |
+
+Other packages register checks with files matching `*.conf` in
+`git-hygiene/checks/` under `$XDG_DATA_HOME` (default `~/.local/share`) or
+each entry of `$XDG_DATA_DIRS` (default `/usr/local/share` and `/usr/share`;
+both lists are split on `os.pathsep`). A declaration is git-config syntax:
+
+    [check "secret-scan"]
+        command = scrub-check
+        args = --quiet
+        hook = pre-commit
+        paths = *
+        order = 60
+        enabled = true
+        required = false
+        mutates-index = false
+        contract = 1
+
+`command` must be a bare name, resolved on `PATH` when the check runs. `args`
+is split as a POSIX shell would split it. `hook` and `paths` may repeat;
+`paths` filters only the staged-set hooks (`pre-commit`, `pre-merge-commit`),
+and a check none of whose globs match a staged path is not run and counts as
+not applicable. Every declaration is validated before anything runs. An
+unknown key, an unknown hook, an unknown contract, a path for a command, or an
+id declared twice is a usage error (exit 2), and no check runs.
+
+Checks run with index-changing ones first, then by `order`, then by id, so a
+new id never reorders the others. Every enabled check runs even after one
+refuses, so a single commit attempt reports everything. A check receives
+`GIT_HYGIENE_HOOK` and `GIT_HYGIENE_CHECK` in its environment, and standard
+input only for the hooks git feeds it to (`pre-push`, `post-rewrite` and the
+server-side hooks).
+
+### Exit contracts
+
+| Code | Contract 1 | Contract 2 |
+|---|---|---|
+| 0 | pass | pass |
+| 1 | refuse | refuse |
+| 2 | usage error, refuse | usage error, refuse |
+| 3 | undefined, refuse | not applicable, pass |
+| 4 | undefined, refuse | could not run: refuse if required, else pass |
+| other, or a signal | undefined, refuse | undefined, refuse |
+
+A declaration without `contract` is contract 1, so an unconverted check keeps
+its old meaning. A code outside the declared contract refuses whether or not
+the check is required, and the message names the check, the code and the
+contract. A command that is not on `PATH` refuses too, whatever the check's
+requirement, since the declaration promised it.
+
+The dispatcher captures what each check prints. Output from a pass or a
+refusal is replayed. Output from a check that was not applicable, or that
+could not run and is optional, is replayed only under `--verbose`, together
+with a line saying why the check stood down. The dispatcher exits 0 when
+nothing refused, 1 when something did, and 2 on a usage or configuration
+error.
+
+### Settings
+
+Which checks run, and which are required, is resolved per repository from
+these layers, each overriding the one before:
+
+| Layer | Source |
+|---|---|
+| declaration | the check's own `enabled` and `required` |
+| system | `/etc/git-hygiene.conf`, then `git-hygiene/config` under each `$XDG_CONFIG_DIRS` entry (default `/etc/xdg`) |
+| user | `$XDG_CONFIG_HOME/git-hygiene/config`, default `~/.config/git-hygiene/config` |
+| repository | `<work tree>/.git-hygiene`, tracked |
+| clone | `<git dir>/info/git-hygiene` |
+| environment | `GIT_HYGIENE_ENABLE`, `_DISABLE`, `_REQUIRE`, `_OPTIONAL` |
+| flag | `--enable`, `--disable`, `--require`, `--optional` |
+
+Files are git-config syntax, read with `git config --file NAME --no-includes
+--null --list` from the file's own directory. Only `check.<id>.enabled` and
+`check.<id>.required` are accepted. The id must be registered. Anything else,
+including a subsection that is a path or a key that would name a command, is a
+configuration error reported before any check runs; that restriction is what
+keeps cloning a repository from running code out of it. An `include` or
+`includeIf` key is ignored with a warning. `--explain` prints, per check, the
+layer each effective setting came from.
+
+A tracked setting may require a check whose input lives outside the
+repository. For `deny-terms`, required means at least one private term source
+must load. Without one, `check-identifiers` exits 4 after scanning against any
+public terms, naming every private location it probed (including
+`.deny-terms.private` in each ancestor the walk visited) and no term, and the
+dispatcher refuses. Unrequired, the same outcome is a silent pass, which keeps
+decision 0002's promise to contributors who have no list.
+
+### File-mode normalization
+
+`normalize-file-modes` looks at staged additions and modifications whose
+index mode is 100644 or 100755. A staged blob beginning with `#!` should be
+100755, anything else 100644. Paths matching a glob in `.gitmodes-exceptions`
+at the work-tree root (one per line, `#` comments, matched with
+`fnmatchcase`) keep their staged mode and are announced as exceptions. An
+untracked exceptions file draws a warning; a pattern that matches every path
+is refused with exit 2.
+
+The new mode is written with `git update-index --cacheinfo MODE,BLOB,PATH`,
+against the blob already staged. The working tree and the staged content are
+untouched, so a partly staged file commits exactly what was staged. Each
+changed path is printed on every run, and when `core.fileMode` is true a note
+says `git status` may show the working file's mode differing from the index.
+It exits 3 when no regular file was staged and 4 outside a work tree.
 
 ## Paths across interpreters
 
@@ -251,9 +399,13 @@ ambiguity, and `--explain` shows which file was actually read.
 ## Supported environments
 
 Python 3.6.8 and newer ([0007](decisions/0007-python-floor-is-3-6-8.md)). Git
-usage is limited to commands that long predate 2.21: `diff --cached`, `show`,
-`ls-files`, `cat-file --batch-all-objects --batch-check`, `cat-file -p`,
-`log --all --format`, `rev-parse --show-cdup` and `rev-parse --git-dir`. The
+usage is limited to long-established commands: `diff --cached`, `show`,
+`ls-files` (with `-s` and `-z`), `cat-file --batch-all-objects --batch-check`,
+`cat-file -p`, `cat-file --batch`, `log --all --format` and `--raw`,
+`rev-parse --show-cdup`, `rev-parse --git-dir`, `update-index --cacheinfo
+MODE,BLOB,PATH` (the comma form arrived in 2.0), and `config --file
+--no-includes --null --list`. The tested floor is 2.43.7, what RHEL 8.10
+ships. The
 framework path needs git 2.31; the native path does not. How each of these is
 proven is in `Verification-Plan.md`.
 

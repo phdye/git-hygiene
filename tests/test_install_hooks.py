@@ -10,14 +10,12 @@ no `capture_output=` (3.7+).
 
 import os
 import subprocess
-import sys
-from pathlib import Path
 
 import pytest
 
 from git_hygiene import install_hooks
 
-SRC_ROOT = str(Path(__file__).resolve().parent.parent / "src")
+from .helpers import Sandbox
 
 
 def git(*args, cwd):
@@ -36,8 +34,11 @@ def git(*args, cwd):
 
 
 @pytest.fixture
-def repo(tmp_path):
-    # type: (Path) -> Path
+def repo(tmp_path, monkeypatch):
+    # type: (Path, pytest.MonkeyPatch) -> Path
+    # Declarations decide which hooks are installed; keep the machine's out.
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "no-data-here"))
+    monkeypatch.setenv("XDG_DATA_DIRS", str(tmp_path / "no-data-dirs"))
     r = tmp_path / "repo"
     r.mkdir()
     git("init", "-q", cwd=r)
@@ -45,19 +46,6 @@ def repo(tmp_path):
     git("config", "user.name", "Test", cwd=r)
     git("config", "commit.gpgsign", "false", cwd=r)
     return r
-
-
-@pytest.fixture
-def terms(tmp_path, monkeypatch):
-    # type: (Path, pytest.MonkeyPatch) -> Path
-    # v0.2.0's resolver always also checks the XDG/config layer,
-    # independent of GIT_DENY_TERMS - isolate it so a real personal
-    # term file on the machine running these tests cannot leak in.
-    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "no-xdg-here"))
-    path = tmp_path / "deny-terms.txt"
-    path.write_text("blockedname\n", encoding="utf-8")
-    monkeypatch.setenv("GIT_DENY_TERMS", str(path))
-    return path
 
 
 def test_writes_both_hooks_executable(repo):
@@ -137,61 +125,29 @@ def test_non_repository_reports_error(tmp_path):
     assert install_hooks.main([str(not_a_repo)]) == 1
 
 
-def _make_check_identifiers_shim(bin_dir):
+def test_installed_hook_actually_blocks_a_commit(tmp_path):
     # type: (Path) -> None
-    """A portable stand-in for the installed console script, so this
-    test needs nothing beyond the interpreter already running it - not
-    a `pip install -e .`, which may not have been done (it has not, on
-    the floor interpreter, which is pinned by design). Forward slashes in
-    the interpreter path so the shim also runs under Git for Windows'
-    bundled bash, which invokes any shebang-bearing file in
-    .git/hooks/ through its own sh regardless of the NTFS exec bit."""
-    shim = bin_dir / "check-identifiers"
-    interpreter = sys.executable.replace("\\", "/")
-    body = '#!/usr/bin/env bash\nexec "{}" -m git_hygiene.check_identifiers "$@"\n'
-    # Bytes, for the same reason install_hooks writes bytes: text mode on
-    # Windows would end each line with CR, and bash would then pass
-    # "--staged\r" to the scanner.
-    shim.write_bytes(body.format(interpreter).encode("utf-8"))
-    shim.chmod(0o755)
-
-
-def test_installed_hook_actually_blocks_a_commit(repo, terms, tmp_path):
-    # type: (Path, Path, Path) -> None
     """The real proof: git itself, not this package, invoking the hook
-    it was pointed at. Git for Windows runs a shebang-line hook through
-    its own bundled sh regardless of the NTFS exec bit; Cygwin and
-    other POSIX gits honor the exec bit directly - either way this is
-    the same shim file exercised the same way a real commit would."""
-    bin_dir = tmp_path / "bin"
-    bin_dir.mkdir()
-    _make_check_identifiers_shim(bin_dir)
-
-    env = dict(os.environ)
-    env["PATH"] = os.pathsep.join([str(bin_dir), env.get("PATH", "")])
-    env["PYTHONPATH"] = os.pathsep.join([SRC_ROOT, env.get("PYTHONPATH", "")])
-
-    assert install_hooks.main([str(repo)]) == 0
-
-    (repo / "bad.md").write_text("has blockedname\n", encoding="utf-8")
-    git("add", "bad.md", cwd=repo)
-    r = subprocess.run(  # noqa: UP022
-        ["git", "commit", "-q", "-m", "add a file"],
-        cwd=str(repo),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        universal_newlines=True,  # noqa: UP021 - text= is also 3.7+ only
-        env=env,
-        check=False,
-    )
+    it was pointed at, which runs the dispatcher, which runs the
+    scanner. Git for Windows runs a shebang-line hook through its own
+    bundled sh regardless of the NTFS exec bit; Cygwin and other POSIX
+    gits honor the exec bit directly - either way this is the same shim
+    file exercised the same way a real commit would."""
+    sb = Sandbox(tmp_path)
+    sb.private_terms("blockedname\n")
+    sb.install()
+    sb.stage("bad.md", "has blockedname\n")
+    r = sb.commit("add a file")
     assert r.returncode != 0
-    assert git("log", "--oneline", cwd=repo).stdout.strip() == ""
+    assert sb.head_count() == 0
     # A hook that REFUSES and a hook that CRASHES both give a non-zero rc
     # and an empty log, so the two assertions above cannot tell them
     # apart - a completely broken hook satisfies them. Assert on what the
     # hook actually said.
     assert "BLOCKED" in r.stderr, r.stderr
+    assert "deny-terms: refused" in r.stderr, r.stderr
     assert "syntax error" not in r.stderr, r.stderr
+    assert "blockedname" not in r.stderr
 
 
 def test_installed_hooks_have_no_carriage_returns(repo):

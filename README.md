@@ -106,13 +106,41 @@ pip install git-hygiene
 install-hooks             # writes .git/hooks/pre-commit and commit-msg
 ```
 
-Each installed hook is a small shell shim that calls `check-identifiers`
-on PATH, so it needs the package installed somewhere that shim can find
-it, but nothing else. Re-running `install-hooks` is safe - it reseeds
-its own hook files and leaves anything it did not install alone unless
-you pass `--force`. `install-hooks --dry-run` shows what would change
-without writing, and `install-hooks --uninstall` removes only the hooks
-this tool manages.
+Each installed hook is a small shell shim that runs `git-hygiene run
+<hook>` from PATH, so it needs the package installed somewhere that shim
+can find it, but nothing else; without it the shim refuses the commit.
+Re-running `install-hooks` is safe - it reseeds its own hook files,
+removes ones it no longer needs, and leaves anything it did not install
+alone unless you pass `--force`. `install-hooks --dry-run` shows what
+would change without writing, and `install-hooks --uninstall` removes
+only the hooks this tool manages.
+
+### One front end, many checks
+
+`git-hygiene run` runs every check selected for a hook. Out of the box
+that is `filemode` (staged files starting with `#!` are recorded as
+0755, everything else as 0644; exceptions go in `.gitmodes-exceptions`),
+`deny-terms` on `pre-commit`, and `deny-terms-msg` on `commit-msg`.
+Other packages add checks by dropping a declaration into
+`~/.local/share/git-hygiene/checks/`.
+
+A repository chooses among installed checks in a tracked `.git-hygiene`
+file, and a single clone in `.git/info/git-hygiene`:
+
+```ini
+[check "filemode"]
+    enabled = false
+[check "deny-terms"]
+    required = true
+```
+
+Those two settings are all a repository can make; it can never name a
+program to run. `required = true` on `deny-terms` makes a commit fail on
+any machine where no private term list is found, instead of passing
+with nothing checked. `git-hygiene run --explain pre-commit` shows what
+will run and where each setting came from, and
+`GIT_HYGIENE_VERBOSE=1` makes a commit report the checks that stood
+down.
 
 ## Adopting git-hygiene in a project
 
@@ -161,9 +189,11 @@ pruning.
 
 ## Two deliberate behaviors
 
-**It reports a file and line number, never the matched term.** Printing
-it would put the identifier into terminal scrollback, CI logs, and any
+**It never prints a term from a private list unless asked.** Printing
+one would put the identifier into terminal scrollback, CI logs, and any
 pasted error report - recreating the leak the tool exists to prevent.
+Terms from a public `.deny-terms` are printed, since the reader already
+has the file.
 
 **It matches on word boundaries.** A short term will not fire inside an
 unrelated longer word. Substring matching produces false positives on

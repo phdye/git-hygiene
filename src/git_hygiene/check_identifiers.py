@@ -54,12 +54,20 @@ def staged_blob(path: str) -> Optional[bytes]:
     return r.stdout
 
 
-def _no_private_source(result: resolution.ResolutionResult, what: str) -> int:
+def _no_private_source(result: resolution.ResolutionResult, what: str, walked: List[Path]) -> int:
+    """Name every place a private list could have come from. Paths only;
+    a term is never printed here."""
     sys.stderr.write(f"check-identifiers: no private term source resolved; {what}.\n")
     sys.stderr.write("check-identifiers: probed:\n")
+    listed = set()
     for source in result.sources:
         if source.klass == "private":
+            listed.add(source.path)
             sys.stderr.write(f"  {source.path}  ({source.status})\n")
+    for directory in walked:
+        candidate = directory / resolution.PRIVATE_NAME
+        if candidate not in listed:
+            sys.stderr.write(f"  {candidate}  (absent)\n")
     return COULD_NOT_RUN
 
 
@@ -118,6 +126,11 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     have_private = bool(result.loaded("private"))
     show_terms = not args.no_show_terms
+    walked = (
+        []
+        if (args.no_walk or args.no_inherit)
+        else resolution.walk_dirs(anchor, Path(args.walk_to) if args.walk_to else None)
+    )
 
     if args.message:
         msg_path = Path(args.message)
@@ -133,7 +146,9 @@ def main(argv: Optional[List[str]] = None) -> int:
         if hits:
             return report(hits, "commit message", args.show_private_terms, show_terms)
         if contract == 2 and not have_private:
-            return _no_private_source(result, "the message was checked against public terms only")
+            return _no_private_source(
+                result, "the message was checked against public terms only", walked
+            )
         return 0
 
     if not result.patterns and contract == 1:
@@ -162,7 +177,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             return NOT_APPLICABLE
         if not have_private:
             return _no_private_source(
-                result, "staged content was checked against public terms only"
+                result, "staged content was checked against public terms only", walked
             )
     return 0
 
