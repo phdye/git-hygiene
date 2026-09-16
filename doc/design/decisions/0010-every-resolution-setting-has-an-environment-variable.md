@@ -1,7 +1,7 @@
 # 0010. Every resolution setting has an environment variable and a negation
 
 Date: 2026-09-16
-Status: proposed; completes 0004 and 0006
+Status: accepted; completes 0004 and 0006
 Settled by: the decision ladder, tier 1 (correctness), with tier 3
 (robustness) for malformed values and tier 7 (default) for the accepted
 spellings
@@ -47,5 +47,7 @@ common set.
 ## Consequences
 
 Adding options and variables is a minor change under the project's policy.
-`--no-show-terms` still has no variable, because record 0004 gave it none.
-That is recorded as an open question, not decided here.
+`--no-show-terms` keeps no variable and no negation. The project's
+conventions would give it both, record 0004 gave it neither, and the ladder
+could not choose between them; the operator affirmed 0004 on 2026-09-16.
+It is the one deliberate exception to the rule above.

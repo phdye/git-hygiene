@@ -87,7 +87,7 @@ command line or the environment, the command line winning
 | `--no-walk` | `--walk` | `GIT_HYGIENE_NO_WALK` |
 | `--walk-to DIR` | | `GIT_HYGIENE_WALK_TO` |
 | `--show-private-terms` | `--no-show-private-terms` | `GIT_HYGIENE_SHOW_PRIVATE_TERMS` |
-| `--no-show-terms` | | none |
+| `--no-show-terms` | | none, by decision |
 
 A boolean variable accepts `1`, `true`, `yes`, `on` and `0`, `false`, `no`,
 `off`, in any case. Empty means unset. Any other value is a usage error that

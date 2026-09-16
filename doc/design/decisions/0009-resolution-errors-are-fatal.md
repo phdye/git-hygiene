@@ -1,7 +1,7 @@
 # 0009. Every resolution error is fatal, and a refused private term stays unnamed
 
 Date: 2026-09-16
-Status: proposed; completes 0004
+Status: accepted; completes 0004
 Settled by: the decision ladder, tier 1 (correctness)
 
 ## Context
