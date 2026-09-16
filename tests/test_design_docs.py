@@ -52,7 +52,16 @@ def test_each_record_carries_its_number_date_and_status():
 
 
 def test_proposals_are_dated_and_carry_a_status():
-    for path in sorted(PROPOSALS.iterdir()):
+    for path in sorted(p for p in PROPOSALS.rglob("*") if p.is_file()):
         assert PROPOSAL_NAME.match(path.name), "badly named proposal: " + path.name
         text = path.read_text(encoding="utf-8")
         assert re.search(r"^(\| Status \||Status:)", text, re.MULTILINE), path.name
+
+
+def test_only_withdrawn_proposals_are_retired():
+    retired = PROPOSALS / "retired"
+    for path in sorted(retired.iterdir()) if retired.is_dir() else []:
+        text = path.read_text(encoding="utf-8")
+        assert re.search(r"^\| Status \| (withdrawn|superseded)\b", text, re.MULTILINE), path.name
+    for path in PROPOSALS.iterdir():
+        assert path.is_file() or path.name == "retired", "unexpected directory: " + path.name

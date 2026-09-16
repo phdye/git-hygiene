@@ -236,6 +236,3 @@ until something asks for it.
 Whether a public list should be able to require a minimum tool version, so a
 list using newer syntax fails loudly on an old client instead of being read as
 terms.
-
-Whether hashed terms should keep plaintext off CI runners entirely; see
-`../proposal/2026-08-16.hashed-term-matching.md`.

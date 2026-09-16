@@ -88,7 +88,7 @@ local `try-repo` run.
 | `.github/workflows/` | lint, test matrix, packaging job. CI runs on `ubuntu-latest` with a current git and is unaffected by the old-git blocker above. |
 | `doc/design/` | the specification, kept current: `Architecture.md` (what the package is) and `Verification-Plan.md` (how each claim is proven). |
 | `doc/design/decisions/` | decision records, numbered, append-only, listed one-to-one in `index.md`; `tests/test_design_docs.py` enforces the listing. |
-| `doc/proposal/` | change proposals, one per file, named `<YYYY-MM-DD>.<topic>.md`. A proposal carries a status line and is kept when abandoned, never deleted. |
+| `doc/proposal/` | change proposals, one per file, named `<YYYY-MM-DD>.<topic>.md`. A proposal carries a status line and is kept when abandoned, never deleted; a withdrawn one moves to `doc/proposal/retired/`. |
 
 The design tree is tracked (decision 0001). A change that alters behavior
 amends `doc/design/` in the same commit; a settled question gets a new

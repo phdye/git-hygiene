@@ -94,6 +94,5 @@ throughout.
 ## What none of these do
 
 They keep plaintext on the runner for one job; they do not keep it away from
-the CI provider. A scheme that matches salted hashes instead of terms would,
-and is written up as a draft proposal in
-`proposal/2026-08-16.hashed-term-matching.md`.
+the CI provider. A scheme matching salted hashes instead of terms was
+considered and withdrawn; decision 0011 records why.
