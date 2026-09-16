@@ -104,6 +104,12 @@ been proven, and prove it there before trusting a local `try-repo` run.
 | `tests/` | unit and end-to-end by default; `pytest -m packaging` needs a real `pre-commit` install and is slow. |
 | `.pre-commit-hooks.yaml` | the public hook manifest — `deny-terms`, `deny-terms-msg`, `audit-tree`. |
 | `.github/workflows/` | lint, test matrix, packaging job. CI runs on `ubuntu-latest` with a current git and is unaffected by the old-git blocker above. |
+| `doc/design/proposal/` | change proposals, tracked, one per file, named `<YYYY-MM-DD>.<topic>.md`. A proposal carries a status line and is kept when abandoned, never deleted. |
+
+`doc/design/proposal/` is a deliberate exception to the working-notes rule
+below: a proposal is addressed to a maintainer deciding whether to accept it,
+outlives the session that wrote it, and is cited by whatever it leads to.
+Decision records and session handoffs stay outside version control.
 
 Working notes — designs, decision records, issue write-ups, session
 handoffs, the worklist — are kept **outside version control** and are
