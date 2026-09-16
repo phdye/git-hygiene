@@ -226,3 +226,16 @@ proven is in `Verification-Plan.md`.
 Its cost on a large history is unmeasured. Blobs, trees and commits are all
 scanned. Binary objects are not skipped; they are decoded with replacement
 characters and searched like text.
+
+## Not yet decided
+
+Whether `/etc/git-hygiene/deny-terms` should also accept a `.d/` directory,
+for configuration tools that prefer dropping files to editing one. Deferred
+until something asks for it.
+
+Whether a public list should be able to require a minimum tool version, so a
+list using newer syntax fails loudly on an old client instead of being read as
+terms.
+
+Whether hashed terms should keep plaintext off CI runners entirely; see
+`../proposal/2026-08-16.hashed-term-matching.md`.

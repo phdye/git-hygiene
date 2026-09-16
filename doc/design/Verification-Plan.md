@@ -59,6 +59,22 @@ native interpreter, CI on Linux. The Windows cell matters because two
 defects lived only there: shims written with CRLF endings, and a POSIX
 top-level path from Cygwin git that a Windows interpreter could not use.
 
+### The cell that ships
+
+The native hooks cross three independent choices, and a result on each
+axis says nothing about their combination. The combination used on the
+development workstation has to be run as one, with a real `git commit`:
+
+| Axis | Value that ships |
+|---|---|
+| Interpreter that writes the hook | native Windows Python |
+| Shell that runs the hook | Cygwin bash |
+| git that runs the commit | Cygwin git |
+
+Both defects named above passed every other cell. Check the outcome by what
+the hook printed (`BLOCKED` for a refusal, no `syntax error`, no traceback),
+not only by its exit status.
+
 ## Rules for claiming something is verified
 
 Five questions, asked before a result is reported.

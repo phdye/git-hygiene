@@ -116,6 +116,23 @@ you pass `--force`. `install-hooks --dry-run` shows what would change
 without writing, and `install-hooks --uninstall` removes only the hooks
 this tool manages.
 
+## Adopting git-hygiene in a project
+
+Two things are worth settling when a project starts depending on these
+hooks.
+
+A missing install is as quiet as a missing term list. The hooks pass when no
+list resolves, and a consumer whose environment lacks git-hygiene altogether
+gets no louder a result from a hand-rolled wrapper around it. Assert
+somewhere loud, such as a one-line CI step running `check-identifiers
+--help`, that the tool is actually installed.
+
+Public CI has no list to check against. The terms are private by design, so
+in a public project's CI the hooks pass without having looked at anything.
+That is correct behavior, and it leaves the gate nearest to publication
+unable to catch a leak unless a private list is provisioned there; see
+[doc/ci-term-provisioning.md](doc/ci-term-provisioning.md).
+
 ## Hooks
 
 | id | stage | what it does |
@@ -180,10 +197,9 @@ The term file is a local workstation convention by default, but
 logs, environment dumps, or cache storage. Short version: a CI secret,
 materialized to a runner-local temp file for the job's lifetime, with
 `GIT_DENY_TERMS` pointed at it - no git-hygiene code involved, since
-`report()` already withholds a private term from output by default. Full
-writeup, including an encrypted-blob variant for sharing one list across
-many repos and a self-hosted-runner variant, is demonstrated end to end
-in the example repository below.
+`report()` already withholds a private term from output by default. The patterns, with
+workflow snippets, are in
+[doc/ci-term-provisioning.md](doc/ci-term-provisioning.md).
 
 A working example lives at
 [phdye/git-hygiene-ci-demo](https://github.com/phdye/git-hygiene-ci-demo).
