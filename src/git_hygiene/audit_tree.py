@@ -19,11 +19,11 @@ audited against zero terms is the entire question being asked of it.
 import argparse
 import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional, Set
 
 from . import resolution
 from .options import add_resolution_options, apply_environment
-from .terms import Hit, git, scan_text
+from .terms import Hit, TermPattern, git, patterns_excluding, resolved_path, scan_text
 
 
 def tracked_files(repo: Path) -> List[str]:
@@ -39,6 +39,33 @@ def all_object_ids(repo: Path) -> List[str]:
         if parts:
             ids.append(parts[0])
     return ids
+
+
+def term_file_versions(repo: Path, term_files: Set[Path]) -> Dict[str, Path]:
+    """Blob id -> term file, for every staged or committed version of
+    each loaded term file that lives in this repository."""
+    versions: Dict[str, Path] = {}
+    root = resolved_path(repo)
+    for own in term_files:
+        try:
+            rel = own.relative_to(root).as_posix()
+        except ValueError:
+            continue
+        log = git(
+            "log", "--all", "--format=", "--raw", "--no-abbrev", "--no-renames", "--", rel, cwd=repo
+        )
+        staged = git("ls-files", "-s", "--", rel, cwd=repo)
+        for line in log.stdout.decode("utf-8", "replace").splitlines():
+            fields = line.split("\t", 1)[0].split()
+            if line.startswith(":") and len(fields) >= 4:
+                for oid in fields[2:4]:
+                    if oid.strip("0"):
+                        versions[oid] = own
+        for line in staged.stdout.decode("utf-8", "replace").splitlines():
+            fields = line.split()
+            if len(fields) >= 2:
+                versions[fields[1]] = own
+    return versions
 
 
 def main(argv: Optional[List[str]] = None) -> int:
@@ -91,6 +118,15 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     hits: List[Hit] = []
 
+    # A loaded term file, and every committed version of it, is scanned
+    # against every source but its own (see check_identifiers).
+    term_files = {c[0] for p in result.patterns for c in p.contributors}
+
+    def patterns_for(own: Optional[Path]) -> List[TermPattern]:
+        if own is None or own not in term_files:
+            return result.patterns
+        return patterns_excluding(result.patterns, own)
+
     files = tracked_files(repo)
     for rel in files:
         path = repo / rel
@@ -98,17 +134,18 @@ def main(argv: Optional[List[str]] = None) -> int:
             text = path.read_text(encoding="utf-8", errors="replace")
         except OSError:
             continue
-        hits += scan_text(text, result.patterns, rel)
+        hits += scan_text(text, patterns_for(resolved_path(path)), rel)
 
     log = git("log", "--all", "--format=%H%n%B", cwd=repo)
     hits += scan_text(log.stdout.decode("utf-8", "replace"), result.patterns, "commit messages")
 
     scanned_objects = 0
     if args.objects:
+        versions = term_file_versions(repo, term_files)
         for oid in all_object_ids(repo):
             blob = git("cat-file", "-p", oid, cwd=repo).stdout
             text = blob.decode("utf-8", "replace")
-            hits += scan_text(text, result.patterns, f"object {oid[:10]}")
+            hits += scan_text(text, patterns_for(versions.get(oid)), f"object {oid[:10]}")
             scanned_objects += 1
 
     print(f"tracked files scanned: {len(files)}")

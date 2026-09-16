@@ -65,7 +65,7 @@ Sources, lowest precedence first:
 | 1 | `/etc/git-hygiene/deny-terms` | probed |
 | 2 | `$XDG_CONFIG_HOME/git/deny-terms.txt`, else `~/.config/git/deny-terms.txt` | probed |
 | 3 | `.deny-terms` and `.deny-terms.private` in ancestors of the anchor, outermost first | probed |
-| 4 | `<anchor>/.deny-terms` | probed |
+| 4 | `<anchor>/.deny-terms`, then `<anchor>/.deny-terms.private` | probed |
 | 5 | `<git dir>/info/deny-terms` | probed |
 | 6 | `GIT_DENY_TERMS`, `os.pathsep`-separated | named |
 | 7 | `--terms FILE`, repeatable | named |
@@ -88,6 +88,7 @@ command line or the environment, the command line winning
 | `--walk-to DIR` | | `GIT_HYGIENE_WALK_TO` |
 | `--show-private-terms` | `--no-show-private-terms` | `GIT_HYGIENE_SHOW_PRIVATE_TERMS` |
 | `--no-show-terms` | | none, by decision |
+| `--exit-contract N` (`check-identifiers` only) | | `GIT_HYGIENE_EXIT_CONTRACT` |
 
 A boolean variable accepts `1`, `true`, `yes`, `on` and `0`, `false`, `no`,
 `off`, in any case. Empty means unset. Any other value is a usage error that
@@ -95,9 +96,21 @@ names the variable, because a mistyped setting must not quietly read as off.
 
 ### Classes
 
-A term file is `public` or `private`, declared on its first non-blank line as
-`# git-hygiene: public` or `# git-hygiene: private`. Undeclared means
-private. That default keeps every existing personal list working unchanged.
+A term file is `public` or `private`, and its name or location decides which.
+Nothing inside the file does.
+
+| Source | Class |
+|---|---|
+| `.deny-terms`, wherever it sits | public |
+| `.deny-terms.private` | private |
+| `/etc/git-hygiene/deny-terms`, the user file, `<git dir>/info/deny-terms` | private, by location |
+| any other name given to `--terms` or `GIT_DENY_TERMS` | private |
+
+The class is therefore known before the file is read, and `.gitignore`, `ls`
+and a reviewer all see the same thing the resolver does. A first line of
+`# git-hygiene: public` or `# git-hygiene: private` is still accepted as an
+assertion. It must agree with the name; a disagreement is a fatal error that
+names the file and both claims, and the file contributes nothing.
 
 | | private | public |
 |---|---|---|
@@ -106,6 +119,9 @@ private. That default keeps every existing personal list working unchanged.
 
 A tracked private file stops the run before any scan. A run that reported
 clean while a private list sat in the index would be worse than no run.
+Tracking is tested with `git ls-files --error-unmatch` on the path relative to
+the anchor, spelled with forward slashes so that a Cygwin git answers
+correctly for a Windows interpreter.
 
 ### Absence
 
@@ -125,13 +141,15 @@ had nothing to audit against, then exits 0.
 ### Merge and negation
 
 Terms merge as a union. Across layers, the first source to introduce a term
-(compared case-insensitively) keeps its provenance.
+(compared case-insensitively) keeps its provenance, and every later source
+holding the same term is recorded beside it.
 
 A line `!term` removes an inherited term. The negating source must be at
-least as strict as the introducing one, so a public file can never cancel a
-private file's term; the cancellation would be readable where the term was
-not. An unauthorized negation leaves the term in force and makes resolution
-fatal. The error names both files; it names the term only under
+least as strict as every source holding the term, so a public file can never
+cancel a term a private file holds, even when a public file introduced it
+first; the cancellation would be readable where the term was not. An
+unauthorized negation leaves the term in force and makes resolution fatal.
+The error names both files; it names the term only under
 `--show-private-terms`, since the refused term always comes from a private
 source.
 
@@ -142,16 +160,17 @@ and `!term`, or one that cannot be read. Its `--explain` row shows an
 
 ### Trust
 
-Ancestor files and the repository-root `.deny-terms` sit in directories
-nobody in particular controls. On POSIX, such a file is skipped, with the
-reason in its `--explain` row and a count in the summary line, when it is
+Ancestor files, the two repository-root files, and any file called
+`.deny-terms` sit in directories nobody in particular controls. On POSIX,
+such a file is skipped, with the reason in its `--explain` row and a count in the summary line, when it is
 world-writable or owned by neither the invoking user nor root. On Windows
 those properties cannot be read from `os.stat`, so the check is not made at
 all and every such file is trusted.
 
 ### Explain
 
-`--explain` prints one row per candidate (path, class, status, term count)
+`--explain` prints one row per candidate (path, derived class, status, term
+count; the class is shown even for a file that does not exist)
 and a summary line, followed on stderr by any fatal errors. It never prints a
 term, of either class and under any flag, because this is the output people
 paste into bug reports. `audit-tree` prints the summary
@@ -169,7 +188,16 @@ source is public, or when it is private and `--show-private-terms` was given
 ([0006](decisions/0006-matched-terms-print-by-source-class.md)).
 `check-identifiers` scans the staged blob (`git show :path`), not the working
 file, because the staged version is what would be committed. A blob git
-cannot show is skipped.
+cannot show is skipped. Binary blobs are scanned too, decoded with
+replacement characters.
+
+A term file the resolver loaded is not scanned against its own entries: a list
+naturally contains the terms it denies. It is still scanned against every
+other loaded source, private ones included, and a match there is reported
+under that source's class. A committed team list that picked up a private
+term by a paste therefore refuses the commit without printing the term. The
+exclusion is by resolved path. `audit-tree` applies it to tracked files and,
+under `--objects`, to every staged or committed version of such a file.
 
 ## Exit status
 
@@ -178,6 +206,15 @@ cannot show is skipped.
 | 0 | Nothing found, or no term resolved |
 | 1 | A term was found, or resolution was fatal |
 | 2 | Usage error, including a malformed boolean environment variable |
+
+That is contract 1, and it is what `check-identifiers` speaks unless it is
+given `--exit-contract 2` (or `GIT_HYGIENE_EXIT_CONTRACT=2`). Under contract 2
+it adds two codes. It exits 3 when nothing it can read as text was staged;
+binaries are still scanned, and a match in one still exits 1. It exits 4 when
+no private term source loaded, after scanning against whatever public terms
+did load, naming every private location it probed and no term; with
+`--message`, a missing message file is also 4. Contract 1 callers, the
+`pre-commit` framework among them, see no change.
 
 `install-hooks` is the exception. It exits 1 when a hook it would write
 belongs to something else and `--force` was not given.

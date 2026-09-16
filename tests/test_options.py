@@ -125,7 +125,8 @@ def test_explain_never_names_a_refused_private_term(repo, tmp_path, monkeypatch,
     # type: (Path, Path, pytest.MonkeyPatch, pytest.CaptureFixture[str]) -> None
     private = tmp_path / "private.txt"
     private.write_text("secretword\n", encoding="utf-8")
-    public = tmp_path / "public.txt"
+    (tmp_path / "pub").mkdir()
+    public = tmp_path / "pub" / ".deny-terms"
     public.write_text("# git-hygiene: public\n!secretword\n", encoding="utf-8")
     monkeypatch.setenv("GIT_HYGIENE_SHOW_PRIVATE_TERMS", "1")
     args = ["--terms", str(private), "--terms", str(public)]
@@ -143,11 +144,13 @@ def test_refused_negation_blocks_the_commit_check(repo, tmp_path, capsys):
     # type: (Path, Path, pytest.CaptureFixture[str]) -> None
     private = tmp_path / "private.txt"
     private.write_text("secretword\n", encoding="utf-8")
-    public = tmp_path / "public.txt"
+    (tmp_path / "pub").mkdir()
+    public = tmp_path / "pub" / ".deny-terms"
     public.write_text("# git-hygiene: public\n!secretword\n", encoding="utf-8")
     stage(repo, "clean content\n")
     rc = check_identifiers.main(["--staged", "--terms", str(private), "--terms", str(public)])
     assert rc == 1
     err = capsys.readouterr().err
     assert "BLOCKED: term resolution failed" in err
+    assert "unauthorized negation" in err
     assert "secretword" not in err

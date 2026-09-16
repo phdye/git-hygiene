@@ -149,7 +149,10 @@ def _make_check_identifiers_shim(bin_dir):
     shim = bin_dir / "check-identifiers"
     interpreter = sys.executable.replace("\\", "/")
     body = '#!/usr/bin/env bash\nexec "{}" -m git_hygiene.check_identifiers "$@"\n'
-    shim.write_text(body.format(interpreter), encoding="utf-8")
+    # Bytes, for the same reason install_hooks writes bytes: text mode on
+    # Windows would end each line with CR, and bash would then pass
+    # "--staged\r" to the scanner.
+    shim.write_bytes(body.format(interpreter).encode("utf-8"))
     shim.chmod(0o755)
 
 

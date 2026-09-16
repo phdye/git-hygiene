@@ -27,7 +27,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, List, NamedTuple, Optional
+from typing import TYPE_CHECKING, List, NamedTuple, Optional, Tuple
 
 if TYPE_CHECKING:
     # typing.Pattern, not re.Pattern: re.Pattern is 3.8+ and the floor
@@ -80,12 +80,44 @@ def env_flag(name: str) -> Optional[bool]:
 
 class TermPattern(NamedTuple):
     """One compiled term, with the provenance that governs whether a
-    match against it may be printed."""
+    match against it may be printed. `source` and `klass` are the first
+    contributor's; `contributors` lists every loaded file that holds the
+    term, as (resolved path, class), in layer order."""
 
     regex: "Pattern[str]"
     term: str
     source: Path
     klass: str  # "public" | "private"
+    contributors: Tuple[Tuple[Path, str], ...] = ()
+
+
+def is_binary(blob: bytes) -> bool:
+    """git's own heuristic: a NUL in the first 8000 bytes."""
+    return b"\0" in blob[:8000]
+
+
+def resolved_path(path: Path) -> Path:
+    """An absolute, symlink-free spelling for comparing file identity."""
+    try:
+        return path.resolve()
+    except OSError:
+        return Path(os.path.abspath(str(path)))
+
+
+def patterns_excluding(patterns: List[TermPattern], own: Path) -> List[TermPattern]:
+    """The patterns that apply to the file at `own` when that file is
+    itself a loaded term file. A term file is not scanned against its
+    own entries, but it is scanned against every other source's, so a
+    term it shares with a private list still matches and is reported
+    under that list's class."""
+    kept = []
+    for pattern in patterns:
+        others = [c for c in pattern.contributors if c[0] != own]
+        if len(others) == len(pattern.contributors):
+            kept.append(pattern)
+        elif others:
+            kept.append(pattern._replace(source=others[0][0], klass=others[0][1]))
+    return kept
 
 
 class Hit(NamedTuple):

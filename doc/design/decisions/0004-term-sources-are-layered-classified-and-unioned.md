@@ -1,7 +1,7 @@
 # 0004. Term sources are layered, classified, and merged by union
 
 Date: 2026-08-16
-Status: accepted, implemented in v0.2.0 (see 0005 for one deviation)
+Status: accepted, implemented in v0.2.0 (see 0005 for one deviation); classification amended 2026-09-16
 
 ## Context
 
@@ -88,3 +88,30 @@ name that does not say what it protects gets copied wrong.
 Per-directory resolution. A deny term is a property of the repository, and
 `audit-tree --objects` already reads every object individually; resolving
 per path would multiply that cost for no question anyone asked.
+
+## Addendum, 2026-09-16: the filename decides the class
+
+The classification rule above is amended by
+[the filename-authoritative proposal](../../proposal/2026-09-16.filename-authoritative-term-classes.md).
+Four reproductions showed the in-band rule failing in practice: an undeclared
+committed `.deny-terms` was fatal to every commit, a declared one blocked its
+own commit by matching itself, and a root-level `.deny-terms.private` was
+neither loaded nor caught when tracked.
+
+A file's class now comes from its name or location. `.deny-terms` is public,
+`.deny-terms.private` is private, the system, user and git-dir files are
+private by location, and any other named file is private. The first-line
+directive survives as an optional assertion that must agree; a disagreement
+is fatal. The repository root is probed for `.deny-terms.private` as well as
+`.deny-terms`. A loaded term file is not scanned against its own entries, but
+is scanned against every other source's.
+
+The Why above, that only the author knows whether a list may be committed,
+still holds: the author now says so by naming the file. The location
+alternative above stays rejected, since `.deny-terms` in a shared ancestor is
+public and `.deny-terms.private` there is private.
+
+Negation authorization is also tightened. A term records every source that
+holds it, not only the first, and a negation must be at least as strict as
+all of them. Before this, a public file could cancel a term a private file
+held whenever a public file had introduced that term first.

@@ -93,7 +93,7 @@ def test_missing_explicit_dot_deny_terms_is_fatal(repo):
     missing = repo / "somewhere" / ".deny-terms"
     result = resolution.resolve(anchor=repo, extra_terms=[str(missing)], no_walk=True)
     assert result.fatal
-    assert any("missing declared-public" in e for e in result.errors)
+    assert any("missing public term source" in e for e in result.errors)
 
 
 def test_auto_probed_repo_root_dot_deny_terms_absence_is_not_fatal(repo):
@@ -126,7 +126,8 @@ def test_term_and_negation_conflict_in_same_file_is_an_error(repo):
 
 def test_negation_from_a_stricter_layer_is_honored(repo):
     # type: (Path) -> None
-    introducing = repo / "introducing.txt"
+    (repo / "pub").mkdir()
+    introducing = repo / "pub" / ".deny-terms"
     introducing.write_text("# git-hygiene: public\nalpha\n", encoding="utf-8")
     negating = repo / "negating.txt"
     negating.write_text("# git-hygiene: private\n!alpha\n", encoding="utf-8")
@@ -142,7 +143,8 @@ def test_public_source_cannot_negate_a_private_term(repo):
     # type: (Path) -> None
     introducing = repo / "introducing.txt"
     introducing.write_text("# git-hygiene: private\nalpha\n", encoding="utf-8")
-    negating = repo / "negating.txt"
+    (repo / "pub").mkdir()
+    negating = repo / "pub" / ".deny-terms"
     negating.write_text("# git-hygiene: public\n!alpha\n", encoding="utf-8")
     result = resolution.resolve(
         anchor=repo, extra_terms=[str(introducing), str(negating)], no_walk=True
@@ -160,7 +162,8 @@ def test_refused_negation_names_the_term_only_when_asked(repo):
     # type: (Path) -> None
     introducing = repo / "introducing.txt"
     introducing.write_text("# git-hygiene: private\nalpha\n", encoding="utf-8")
-    negating = repo / "negating.txt"
+    (repo / "pub").mkdir()
+    negating = repo / "pub" / ".deny-terms"
     negating.write_text("# git-hygiene: public\n!alpha\n", encoding="utf-8")
     result = resolution.resolve(
         anchor=repo,

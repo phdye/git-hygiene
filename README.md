@@ -59,27 +59,25 @@ precedence first, and terms accumulate as a union across all of them:
 | `/etc/git-hygiene/deny-terms` | system wide, e.g. a build host |
 | `$XDG_CONFIG_HOME/git/deny-terms.txt`, else `~/.config/git/deny-terms.txt` | your personal list |
 | ancestor `.deny-terms` / `.deny-terms.private` | everything under a directory |
-| `<repo>/.deny-terms` | the team's committed list |
+| `<repo>/.deny-terms`, `<repo>/.deny-terms.private` | the team's committed list; a private list for this tree |
 | `<repo>/.git/info/deny-terms` | private, per clone, uncommittable by construction |
 | `GIT_DENY_TERMS` | explicit paths, `:`-separated |
 | `--terms FILE` | explicit, repeatable, highest |
 
-Each file declares whether it is safe to publish, on its first line:
-
-```
-# git-hygiene: public
-```
-
-**An undeclared file is private** - the safe default, so every existing
-term file keeps working unchanged. The class decides three things: a
-private list must never be tracked by git (a tracked one is a hard
-error), a matched term from a public list is printed while one from a
-private list is not, and `--show-private-terms` overrides that last part
-when you want the full report.
+A file's name says whether it is safe to publish: `.deny-terms` is
+public, `.deny-terms.private` is private, and so is every other file
+(the system, personal and `.git/info/` lists, and anything else you name).
+The class decides three things: a private list must never be tracked by
+git (a tracked one is a hard error), a matched term from a public list is
+printed while one from a private list is not, and `--show-private-terms`
+overrides that last part when you want the full report. A committed
+`.deny-terms` is not checked against itself, only against your other
+lists. An optional first line of `# git-hygiene: public` or
+`# git-hygiene: private` must agree with the name, or the check stops.
 
 `!term` removes an inherited term, but only from a source at least as
-strict as the one that introduced it - a public file can never cancel a
-private file's term, since the cancellation would be readable where the
+strict as every source holding it - a public file can never cancel a
+term a private file holds, since the cancellation would be readable where the
 term was not.
 
 Every option that shapes resolution can also be set from the environment:

@@ -14,11 +14,17 @@ a private list to a CI runner, see
 
 ## The two kinds
 
-Whether a list may be committed is a property of the terms, not of where the
-file happens to live, so the file declares it. The first non-blank line is
-either `# git-hygiene: public` or `# git-hygiene: private`. A file that
-declares nothing is treated as private, which keeps every personal list working
-unchanged and makes publishing a list a deliberate act.
+Whether a list may be committed is a property of the terms, which only the
+author knows, so the author says it by naming the file. A file called
+`.deny-terms` is public. A file called `.deny-terms.private` is private, and so
+is the system file, your personal file, and the one under `.git/info/`, because
+of where they live. Any other name you hand to `--terms` or `GIT_DENY_TERMS` is
+private too. Nothing inside the file changes its class, so `ls`, `git status`
+and `.gitignore` all see the same answer the tool does.
+
+A first line of `# git-hygiene: public` or `# git-hygiene: private` is still
+allowed, as documentation. It has to agree with the name. If it does not, the
+tool stops and names the file and both claims rather than picking one.
 
 A **public** list holds identifiers that are safe to read. A retired product
 codename, a decommissioned hostname, the name of a company before an
@@ -31,7 +37,7 @@ one publishes exactly what it conceals, which is the failure this project
 exists to prevent. Such a list is never tracked, and the tool treats a tracked
 private file as fatal rather than as a warning.
 
-## What the declaration changes
+## What the class changes
 
 The class is not a label. Three behaviors depend on it, and each has no single
 answer that is right for both kinds.
@@ -57,17 +63,23 @@ scope never silently drops what a broader scope forbids. The full table is in
 Architecture; what follows is how to pick.
 
 For a list that everyone working in one repository should share, and that is
-safe to publish, put `.deny-terms` at the repository root and commit it.
+safe to publish, put `.deny-terms` at the repository root and commit it. A team
+list is never checked against itself, since it naturally contains the terms it
+forbids. It is checked against every other list, though, so a private term
+pasted into it by mistake still refuses the commit, without being printed.
 
 For a private list covering one clone, use `<git dir>/info/deny-terms`. Nothing
 inside `.git/` can be committed, so the guarantee is structural rather than a
 matter of remembering.
 
+For a private list at the top of one working tree, `.deny-terms.private` at the
+repository root works as well, provided the ignore rule below is in place.
+
 For a private list spanning many repositories under one directory, use
 `.deny-terms.private` in a common ancestor. The walk collects it from every
-parent up to the stopping boundary, outermost first. This is the one case where
-a private list sits in an ordinary directory rather than inside `.git/`, so it
-is also the case that most needs the ignore rule below.
+parent up to the stopping boundary, outermost first. This and the root-level
+file are the cases where a private list sits in an ordinary directory rather
+than inside `.git/`, so they are the ones that need the ignore rule below.
 
 For a list belonging to one person across everything they do, use
 `~/.config/git/deny-terms.txt`, honoring `$XDG_CONFIG_HOME` when set. For a

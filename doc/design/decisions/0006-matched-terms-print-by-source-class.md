@@ -1,7 +1,7 @@
 # 0006. A matched term is printed when its source is public
 
 Date: 2026-08-16
-Status: accepted; supersedes the v0.1 rule that no term is ever printed
+Status: accepted; supersedes the v0.1 rule that no term is ever printed; amended 2026-09-16
 
 ## Context
 
@@ -50,3 +50,12 @@ Keeping the v0.1 rule for every class. Rejected for the cost above.
 ## Addendum, 2026-09-16
 
 The environment variable is implemented; see 0010.
+
+## Addendum, 2026-09-16: the class comes from the name
+
+The class this record prints by is now derived from the file's name or
+location rather than declared inside it (see the 0004 addendum). The printing
+rule itself is unchanged. One case is new. A committed public list is scanned
+against every other loaded source, and when it holds a term that a private
+source also holds, the hit is reported under the private source's class, so
+the term is withheld unless `--show-private-terms` is given.
