@@ -27,3 +27,8 @@ htmlcov/
 # exists to enforce - if one ever lands here, the tool has failed.
 deny-terms.txt
 *deny-terms*.txt
+
+# A private term list is sensitive by declaration and must never be
+# tracked, at any depth. The public .deny-terms is meant to be
+# committed and is deliberately absent from this list.
+.deny-terms.private
