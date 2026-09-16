@@ -18,3 +18,5 @@ one-to-one.
 | [0006](0006-matched-terms-print-by-source-class.md) | A matched term is printed when its source is public | 2026-08-16 |
 | [0007](0007-python-floor-is-3-6-8.md) | The Python floor is 3.6.8 | 2026-08-16 |
 | [0008](0008-old-git-gets-native-hooks-not-a-patched-framework.md) | Old git gets native hooks, not a patched framework | 2026-08-16 |
+| [0009](0009-resolution-errors-are-fatal.md) | Every resolution error is fatal, and a refused private term stays unnamed | 2026-09-16 |
+| [0010](0010-every-resolution-setting-has-an-environment-variable.md) | Every resolution setting has an environment variable and a negation | 2026-09-16 |

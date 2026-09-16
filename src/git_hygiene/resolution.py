@@ -216,10 +216,16 @@ def resolve(
     no_inherit: bool = False,
     no_walk: bool = False,
     walk_to: Optional[str] = None,
+    show_private_terms: bool = False,
 ) -> ResolutionResult:
     """Build the merged, provenance-carrying pattern set. `anchor` is
     normally the work tree root (git_toplevel()); resolution happens
-    once per invocation and is reused for every file scanned."""
+    once per invocation and is reused for every file scanned.
+
+    `show_private_terms` governs error text only. A refused negation
+    always cancels a private term, so its message names the term only
+    when the caller would also print that term in a hit (decision 0006).
+    """
     if anchor is None:
         anchor = Path.cwd()
     walk_boundary = Path(walk_to) if walk_to else None
@@ -286,7 +292,10 @@ def resolve(
 
         positives, negatives, parse_error = _parse_terms(path)
         if parse_error is not None:
+            # Fatal, not a skip: a list that silently contributes nothing
+            # is a reduction in protection nobody asked for (decision 0004).
             errors.append(f"{path}: {parse_error}")
+            fatal = True
             sources.append(Source(path, klass, declared, "error:" + parse_error, 0, walked))
             continue
 
@@ -307,10 +316,12 @@ def resolve(
             if rank < introducing_rank:
                 continue  # cannot happen given processing order; defensive
             if _RANK[klass] < _RANK[introducing_klass]:
+                named = f" of '{term}'" if show_private_terms else ""
                 errors.append(
-                    f"unauthorized negation of '{term}': {path} ({klass}) cannot cancel a term from "
+                    f"unauthorized negation{named}: {path} ({klass}) cannot cancel a term from "
                     f"{introducing_path} ({introducing_klass})"
                 )
+                fatal = True
                 continue
             del active[key]
             negations_honored += 1

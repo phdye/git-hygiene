@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from . import resolution
+from .options import add_resolution_options, apply_environment
 from .terms import git, git_toplevel, report, scan_text
 
 
@@ -42,28 +43,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--staged", action="store_true", help="scan staged file content")
     group.add_argument("--message", metavar="FILE", help="scan a commit message file")
-    parser.add_argument(
-        "--terms", action="append", metavar="FILE", help="explicit term source, repeatable"
-    )
-    parser.add_argument(
-        "--no-inherit",
-        action="store_true",
-        help="use only the highest explicit source (--terms, else GIT_DENY_TERMS)",
-    )
-    parser.add_argument("--no-walk", action="store_true", help="skip the ancestor walk")
-    parser.add_argument("--walk-to", metavar="DIR", help="bound the ancestor walk")
-    parser.add_argument(
-        "--show-private-terms",
-        action="store_true",
-        help="also print matched terms from private sources",
-    )
-    parser.add_argument(
-        "--no-show-terms",
-        action="store_true",
-        help="suppress all term printing; locations only",
-    )
+    add_resolution_options(parser)
     parser.add_argument("--explain", action="store_true", help="print term resolution and exit")
-    args = parser.parse_args(argv)
+    args = apply_environment(parser.parse_args(argv), parser)
 
     anchor = git_toplevel() or Path.cwd()
     result = resolution.resolve(
@@ -72,12 +54,20 @@ def main(argv: Optional[List[str]] = None) -> int:
         no_inherit=args.no_inherit,
         no_walk=args.no_walk,
         walk_to=args.walk_to,
+        # --explain output is what gets pasted into bug reports; it names
+        # no term under any flag (decision 0006).
+        show_private_terms=args.show_private_terms and not args.explain,
     )
 
     if args.explain:
         for line in resolution.explain_lines(result):
             print(line)
-        return 1 if result.fatal else 0
+        if result.fatal:
+            sys.stderr.write("\nterm resolution failed:\n")
+            for error in result.errors:
+                sys.stderr.write("  " + error + "\n")
+            return 1
+        return 0
 
     if result.fatal:
         sys.stderr.write("\nBLOCKED: term resolution failed.\n\n")

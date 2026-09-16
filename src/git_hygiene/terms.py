@@ -59,6 +59,25 @@ def term_file() -> Path:
     return DEFAULT_TERM_FILE
 
 
+_TRUE = ("1", "true", "yes", "on")
+_FALSE = ("0", "false", "no", "off")
+
+
+def env_flag(name: str) -> Optional[bool]:
+    """A boolean setting from the environment, or None when unset or
+    empty. Anything unrecognized raises ValueError naming the variable:
+    a typo in a setting that lowers protection must not read as "off"."""
+    raw = os.environ.get(name, "").strip().lower()
+    if not raw:
+        return None
+    if raw in _TRUE:
+        return True
+    if raw in _FALSE:
+        return False
+    accepted = ", ".join(_TRUE + _FALSE)
+    raise ValueError(f"{name}={os.environ[name]!r} is not a boolean; use one of {accepted}")
+
+
 class TermPattern(NamedTuple):
     """One compiled term, with the provenance that governs whether a
     match against it may be printed."""

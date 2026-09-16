@@ -74,6 +74,25 @@ Sources, lowest precedence first:
 environment). `--no-walk` drops layer 3, and `--walk-to DIR` bounds it. The
 walk otherwise stops at `$HOME` or the filesystem root.
 
+### Settings
+
+Both scanning commands take the same resolution settings, each from the
+command line or the environment, the command line winning
+([0010](decisions/0010-every-resolution-setting-has-an-environment-variable.md)).
+
+| Option | Negation | Environment |
+|---|---|---|
+| `--terms FILE` | | `GIT_DENY_TERMS` |
+| `--no-inherit` | `--inherit` | `GIT_HYGIENE_NO_INHERIT` |
+| `--no-walk` | `--walk` | `GIT_HYGIENE_NO_WALK` |
+| `--walk-to DIR` | | `GIT_HYGIENE_WALK_TO` |
+| `--show-private-terms` | `--no-show-private-terms` | `GIT_HYGIENE_SHOW_PRIVATE_TERMS` |
+| `--no-show-terms` | | none |
+
+A boolean variable accepts `1`, `true`, `yes`, `on` and `0`, `false`, `no`,
+`off`, in any case. Empty means unset. Any other value is a usage error that
+names the variable, because a mistyped setting must not quietly read as off.
+
 ### Classes
 
 A term file is `public` or `private`, declared on its first non-blank line as
@@ -111,15 +130,15 @@ Terms merge as a union. Across layers, the first source to introduce a term
 A line `!term` removes an inherited term. The negating source must be at
 least as strict as the introducing one, so a public file can never cancel a
 private file's term; the cancellation would be readable where the term was
-not. An unauthorized negation leaves the term in force. A file carrying both
-`term` and `!term` contributes nothing, and `--explain` shows it with an
-`error:` status.
+not. An unauthorized negation leaves the term in force and makes resolution
+fatal. The error names both files; it names the term only under
+`--show-private-terms`, since the refused term always comes from a private
+source.
 
-Both cases are appended to the result's error list, but neither sets the
-fatal flag, and the commands print that list only when resolution is fatal.
-So an unauthorized negation is currently invisible: the term stays enforced,
-which is the safe direction, while the author of the negation is never told
-it was refused. Decision 0004 intended it to be an error. The gap is open.
+A file that exists but cannot be used is fatal too: one carrying both `term`
+and `!term`, or one that cannot be read. Its `--explain` row shows an
+`error:` status. Every fatal case stops the run before anything is scanned
+([0009](decisions/0009-resolution-errors-are-fatal.md)).
 
 ### Trust
 
@@ -133,8 +152,9 @@ all and every such file is trusted.
 ### Explain
 
 `--explain` prints one row per candidate (path, class, status, term count)
-and a summary line. It never prints a term, of either class, because this is
-the output people paste into bug reports. `audit-tree` prints the summary
+and a summary line, followed on stderr by any fatal errors. It never prints a
+term, of either class and under any flag, because this is the output people
+paste into bug reports. `audit-tree` prints the summary
 line on every run: whether a pre-publish audit ran against zero terms is the
 question it exists to answer.
 
@@ -157,7 +177,7 @@ cannot show is skipped.
 |---|---|
 | 0 | Nothing found, or no term resolved |
 | 1 | A term was found, or resolution was fatal |
-| 2 | Usage error (argparse) |
+| 2 | Usage error, including a malformed boolean environment variable |
 
 `install-hooks` is the exception. It exits 1 when a hook it would write
 belongs to something else and `--force` was not given.

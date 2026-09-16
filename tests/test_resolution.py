@@ -120,6 +120,7 @@ def test_term_and_negation_conflict_in_same_file_is_an_error(repo):
     f.write_text("alpha\n!alpha\n", encoding="utf-8")
     result = resolution.resolve(anchor=repo, extra_terms=[str(f)], no_walk=True)
     assert names(result) == set()
+    assert result.fatal
     assert any("conflicting term/negation" in e for e in result.errors)
 
 
@@ -149,7 +150,25 @@ def test_public_source_cannot_negate_a_private_term(repo):
     # The term survives - the negation was refused, not silently dropped.
     assert names(result) == {"alpha"}
     assert result.negations_honored == 0
+    assert result.fatal
     assert any("unauthorized negation" in e for e in result.errors)
+    # The refused term came from a private source: withheld by default.
+    assert not any("alpha" in e for e in result.errors)
+
+
+def test_refused_negation_names_the_term_only_when_asked(repo):
+    # type: (Path) -> None
+    introducing = repo / "introducing.txt"
+    introducing.write_text("# git-hygiene: private\nalpha\n", encoding="utf-8")
+    negating = repo / "negating.txt"
+    negating.write_text("# git-hygiene: public\n!alpha\n", encoding="utf-8")
+    result = resolution.resolve(
+        anchor=repo,
+        extra_terms=[str(introducing), str(negating)],
+        no_walk=True,
+        show_private_terms=True,
+    )
+    assert any("'alpha'" in e for e in result.errors)
 
 
 def test_negation_of_nothing_active_is_a_harmless_no_op(repo):

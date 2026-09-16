@@ -46,3 +46,7 @@ hit by hit. The design also named an environment variable,
 ## Alternatives
 
 Keeping the v0.1 rule for every class. Rejected for the cost above.
+
+## Addendum, 2026-09-16
+
+The environment variable is implemented; see 0010.

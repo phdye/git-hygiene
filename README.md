@@ -82,6 +82,15 @@ strict as the one that introduced it - a public file can never cancel a
 private file's term, since the cancellation would be readable where the
 term was not.
 
+Every option that shapes resolution can also be set from the environment:
+`GIT_HYGIENE_NO_INHERIT`, `GIT_HYGIENE_NO_WALK`, `GIT_HYGIENE_WALK_TO` and
+`GIT_HYGIENE_SHOW_PRIVATE_TERMS`, with the command line winning. `--inherit`,
+`--walk` and `--no-show-private-terms` turn an environment setting back off.
+
+A term list the tool cannot use stops the check rather than being skipped:
+a file it cannot read, a file that both lists and negates one term, or a
+negation a public file is not allowed to make.
+
 Run `check-identifiers --staged --explain` to see exactly which files were
 found, their class, and how many terms each contributed. That is the
 answer to "did it actually find my list", which used to require guessing

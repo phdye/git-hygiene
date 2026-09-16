@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from . import resolution
+from .options import add_resolution_options, apply_environment
 from .terms import Hit, git, scan_text
 
 
@@ -53,32 +54,13 @@ def main(argv: Optional[List[str]] = None) -> int:
         action="store_true",
         help="also scan every git object, including unreachable history (slow)",
     )
-    parser.add_argument(
-        "--terms", action="append", metavar="FILE", help="explicit term source, repeatable"
-    )
-    parser.add_argument(
-        "--no-inherit",
-        action="store_true",
-        help="use only the highest explicit source (--terms, else GIT_DENY_TERMS)",
-    )
-    parser.add_argument("--no-walk", action="store_true", help="skip the ancestor walk")
-    parser.add_argument("--walk-to", metavar="DIR", help="bound the ancestor walk")
-    parser.add_argument(
-        "--show-private-terms",
-        action="store_true",
-        help="also print matched terms from private sources",
-    )
-    parser.add_argument(
-        "--no-show-terms",
-        action="store_true",
-        help="suppress all term printing; locations only",
-    )
+    add_resolution_options(parser)
     parser.add_argument(
         "--explain",
         action="store_true",
         help="print the full term resolution, not just its summary",
     )
-    args = parser.parse_args(argv)
+    args = apply_environment(parser.parse_args(argv), parser)
     repo = Path(args.repo).resolve()
 
     result = resolution.resolve(
@@ -87,6 +69,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         no_inherit=args.no_inherit,
         no_walk=args.no_walk,
         walk_to=args.walk_to,
+        show_private_terms=args.show_private_terms and not args.explain,
     )
 
     if args.explain:
