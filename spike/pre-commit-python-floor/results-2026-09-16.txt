@@ -1,0 +1,7 @@
+date-utc: 2026-09-16T20:50:01Z
+python: 3.6.9
+pre-commit: 4.6.2
+wheel: pre_commit-4.6.2-py2.py3-none-any.whl
+sha256: e2dde9a75d3bce11bd3831c26d134df00a2803c1d818be6a0383c3dcda25dc4e
+requires-python: >=3.10
+verdict: Requires-Python admits 3.6.8: no
