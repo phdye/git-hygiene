@@ -8,8 +8,9 @@
 # 2.17.0, through `pre-commit try-repo` against a clone of HEAD with the
 # manifest rewritten. A planted term proves the hook ran rather than passing
 # unrun. Also records how the framework treats a hook that changes only the
-# mode recorded in the index, under core.fileMode true and false, which bears
-# on the multi-check proposal's comparison with pre-commit.
+# mode recorded in the index, under core.fileMode true and false, and one
+# that gives the working file the same mode, including for a partly staged
+# file (decision 0016).
 #
 # Run it on the RHEL 8.10 replica, offline from the pins in packages.tsv.
 #
@@ -35,7 +36,7 @@ run() {
 }
 capture() { "$@" > "$work/out" 2>&1; local rc=$?; cat "$work/out" >>"$log"; [ $verbose = 1 ] && cat "$work/out" >&2; return $rc; }
 
-say "script      pre-commit-at-floor 1.0"
+say "script      pre-commit-at-floor 1.1"
 say "date        $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 say "host        $(uname -sr)"
 say "python      $($py --version 2>&1)"
@@ -122,6 +123,14 @@ git diff --cached --name-only --diff-filter=AM -- '*.sh' | while read -r f; do
 done
 EOF
 chmod 755 "$work/bin/fix-mode"
+cat > "$work/bin/fix-mode-both" <<'EOF'
+#!/bin/sh
+git diff --cached --name-only --diff-filter=AM -- '*.sh' | while read -r f; do
+    git update-index --chmod=+x -- "$f"
+    chmod +x -- "$f"
+done
+EOF
+chmod 755 "$work/bin/fix-mode-both"
 export PATH=$work/bin:$PATH
 
 for mode in true false; do
@@ -158,11 +167,47 @@ EOF
     say "filemode_${mode}_recorded_mode=${recorded:-none}"
 done
 
+# Both modes set, with core.fileMode true: a fully staged file and a partly
+# staged one, whose unstaged line must survive the framework's stash.
+b=$work/mode-both; consumer "$b"
+cat > "$b/.pre-commit-config.yaml" <<'EOF'
+repos:
+- repo: local
+  hooks:
+  - id: fix-mode-both
+    name: fix-mode-both
+    entry: fix-mode-both
+    language: system
+    pass_filenames: false
+    always_run: true
+EOF
+(cd "$b" && run pre-commit install)
+printf 'echo one\n' > "$b/whole.sh"
+printf 'echo staged\n' > "$b/part.sh"
+chmod 644 "$b/whole.sh" "$b/part.sh"
+git -C "$b" add -A
+printf 'echo unstaged\n' >> "$b/part.sh"
+if (cd "$b" && capture git commit -q -m first); then first=landed; else first=refused; fi
+say "filemode_true_both_first_commit=$first"
+say "filemode_true_both_recorded_modes=$(git -C "$b" ls-tree HEAD whole.sh part.sh 2>/dev/null | cut -d' ' -f1 | sort -u | tr '\n' ' ')"
+if [ "$(git -C "$b" show HEAD:part.sh 2>/dev/null)" = "echo staged" ]; then
+    say "filemode_true_both_partial_commit=staged half only"
+else
+    say "filemode_true_both_partial_commit=other"
+fi
+if grep -q '^echo unstaged$' "$b/part.sh"; then
+    say "filemode_true_both_partial_worktree=unstaged half kept"
+else
+    say "filemode_true_both_partial_worktree=unstaged half lost"
+fi
+
 say ""
 f=$work/findings
 if grep -q '^min_3_2_0_clean=refused' "$f" && grep -q '^min_2_17_0_clean=passed' "$f" \
-   && grep -q '^min_2_17_0_planted=blocked' "$f"; then
-    say "verdict=pre-commit 2.17.0 runs these hooks only when the manifest admits 2.17.0"
+   && grep -q '^min_2_17_0_planted=blocked' "$f" \
+   && grep -q '^filemode_true_both_first_commit=landed' "$f" \
+   && grep -q '^filemode_true_both_partial_worktree=unstaged half kept' "$f"; then
+    say "verdict=pre-commit 2.17.0 runs these hooks only when the manifest admits 2.17.0; a mode fix that sets both modes lands on the first commit"
 else
     say "verdict=not established"
     exit 1

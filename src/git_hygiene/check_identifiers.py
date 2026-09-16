@@ -9,16 +9,14 @@ negation, a class conflict, a missing named public source) stops the
 check before it scans anything: a run that reported clean while
 misconfigured would be worse than no run at all.
 
-Exit codes follow contract 1 (0 pass, 1 refuse, 2 usage) unless
-`--exit-contract 2` is given, which adds 3 (nothing of this check's
-kind was staged) and 4 (no private term source resolved, or the
-message file is missing). The dispatcher asks for contract 2; a direct
-caller such as the pre-commit framework keeps contract 1 and sees no
-change.
+Exit codes: 0 pass, 1 refuse, 2 usage. With --require-private (or
+GIT_HYGIENE_REQUIRE_PRIVATE), resolving no private term source is a
+refusal rather than a silent pass, so a repository can insist that its
+list reached the machine. A commit that staged nothing readable as text
+still passes: there was nothing the list could have been checked against.
 """
 
 import argparse
-import os
 import sys
 from pathlib import Path
 from typing import List, Optional
@@ -26,6 +24,7 @@ from typing import List, Optional
 from . import resolution
 from .options import add_resolution_options, apply_environment
 from .terms import (
+    env_flag,
     git,
     git_toplevel,
     is_binary,
@@ -35,9 +34,7 @@ from .terms import (
     scan_text,
 )
 
-NOT_APPLICABLE = 3
-COULD_NOT_RUN = 4
-_CONTRACT_ENV = "GIT_HYGIENE_EXIT_CONTRACT"
+_REQUIRE_ENV = "GIT_HYGIENE_REQUIRE_PRIVATE"
 
 
 def staged_files() -> List[str]:
@@ -57,7 +54,7 @@ def staged_blob(path: str) -> Optional[bytes]:
 def _no_private_source(result: resolution.ResolutionResult, what: str, walked: List[Path]) -> int:
     """Name every place a private list could have come from. Paths only;
     a term is never printed here."""
-    sys.stderr.write(f"check-identifiers: no private term source resolved; {what}.\n")
+    sys.stderr.write(f"\nBLOCKED: no private term source resolved, and one is required; {what}.\n")
     sys.stderr.write("check-identifiers: probed:\n")
     listed = set()
     for source in result.sources:
@@ -68,14 +65,17 @@ def _no_private_source(result: resolution.ResolutionResult, what: str, walked: L
         candidate = directory / resolution.PRIVATE_NAME
         if candidate not in listed:
             sys.stderr.write(f"  {candidate}  (absent)\n")
-    return COULD_NOT_RUN
+    return 1
 
 
-def _contract(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
-    raw = args.exit_contract or os.environ.get(_CONTRACT_ENV, "").strip() or "1"
-    if raw not in ("1", "2"):
-        parser.error(f"exit contract must be 1 or 2, not {raw!r}")
-    return int(raw)
+def _require_private(args: argparse.Namespace, parser: argparse.ArgumentParser) -> bool:
+    if args.require_private is not None:
+        return bool(args.require_private)
+    try:
+        return bool(env_flag(_REQUIRE_ENV))
+    except ValueError as exc:
+        parser.error(str(exc))
+    return False
 
 
 def main(argv: Optional[List[str]] = None) -> int:
@@ -88,12 +88,20 @@ def main(argv: Optional[List[str]] = None) -> int:
     add_resolution_options(parser)
     parser.add_argument("--explain", action="store_true", help="print term resolution and exit")
     parser.add_argument(
-        "--exit-contract",
-        metavar="N",
-        help="exit-code contract, 1 (default) or 2 (env: GIT_HYGIENE_EXIT_CONTRACT)",
+        "--require-private",
+        dest="require_private",
+        action="store_true",
+        default=None,
+        help="refuse when no private term source resolves (env: GIT_HYGIENE_REQUIRE_PRIVATE)",
+    )
+    parser.add_argument(
+        "--no-require-private",
+        dest="require_private",
+        action="store_false",
+        help="undo --require-private",
     )
     args = apply_environment(parser.parse_args(argv), parser)
-    contract = _contract(args, parser)
+    required = _require_private(args, parser)
 
     anchor = git_toplevel() or Path.cwd()
     result = resolution.resolve(
@@ -135,23 +143,20 @@ def main(argv: Optional[List[str]] = None) -> int:
     if args.message:
         msg_path = Path(args.message)
         if not msg_path.is_file():
-            if contract == 2:
-                sys.stderr.write(f"check-identifiers: commit message file not found: {msg_path}\n")
-                return COULD_NOT_RUN
             return 0
-        if not result.patterns and contract == 1:
+        if not result.patterns and not required:
             return 0  # silent by design; see decision 0002
         text = msg_path.read_text(encoding="utf-8", errors="replace")
         hits = scan_text(text, result.patterns, "commit message")
         if hits:
             return report(hits, "commit message", args.show_private_terms, show_terms)
-        if contract == 2 and not have_private:
+        if required and not have_private:
             return _no_private_source(
                 result, "the message was checked against public terms only", walked
             )
         return 0
 
-    if not result.patterns and contract == 1:
+    if not result.patterns and not required:
         return 0  # silent by design; see decision 0002
     paths = staged_files()
 
@@ -172,13 +177,10 @@ def main(argv: Optional[List[str]] = None) -> int:
         hits += scan_text(blob.decode("utf-8", "replace"), patterns, path)
     if hits:
         return report(hits, "staged content", args.show_private_terms, show_terms)
-    if contract == 2:
-        if texts == 0:
-            return NOT_APPLICABLE
-        if not have_private:
-            return _no_private_source(
-                result, "staged content was checked against public terms only", walked
-            )
+    if required and texts and not have_private:
+        return _no_private_source(
+            result, "staged content was checked against public terms only", walked
+        )
     return 0
 
 

@@ -42,7 +42,7 @@ def repo(tmp_path, monkeypatch):
         "GIT_HYGIENE_NO_WALK",
         "GIT_HYGIENE_WALK_TO",
         "GIT_HYGIENE_SHOW_PRIVATE_TERMS",
-        "GIT_HYGIENE_EXIT_CONTRACT",
+        "GIT_HYGIENE_REQUIRE_PRIVATE",
     ):
         monkeypatch.delenv(name, raising=False)
     r = tmp_path / "repo"
@@ -280,52 +280,50 @@ def test_audit_finds_a_private_term_in_an_old_version_of_the_team_list(repo, cap
     assert SECRET not in out + err
 
 
-# --- exit contract 2 -------------------------------------------------------
+# --- a required private list ----------------------------------------------
 
 
-def test_contract_2_binary_only_commit_is_not_applicable(repo, capsys):
+def test_binaries_are_scanned_and_a_binary_only_commit_passes_when_required(repo, capsys):
     # type: (Path, object) -> None
     write(repo / ".git" / "info" / "deny-terms", SECRET + "\n")
     (repo / "blob.bin").write_bytes(b"\x00\x01\x02" + SECRET.encode("ascii"))
     git("add", "blob.bin", cwd=repo)
-    assert staged("--exit-contract", "2") == 1  # binaries are still scanned
+    assert staged("--require-private") == 1
     capsys.readouterr()
+    (repo / ".git" / "info" / "deny-terms").unlink()
     (repo / "blob.bin").write_bytes(b"\x00\x01\x02 nothing here")
     git("add", "blob.bin", cwd=repo)
-    assert staged("--exit-contract", "2") == 3
-    assert staged() == 0  # contract 1 is unchanged
+    assert staged("--require-private") == 0
 
 
-def test_contract_2_without_a_private_source_could_not_run(repo, capsys):
+def test_required_without_a_private_source_refuses(repo, capsys):
     # type: (Path, object) -> None
     write(repo / ".deny-terms", TEAM + "\n")
     write(repo / "doc.md", "ordinary\n")
     git("add", "doc.md", cwd=repo)
-    assert staged("--exit-contract", "2") == 4
+    assert staged("--require-private") == 1
     err = capsys.readouterr()[1]
-    assert "no private term source resolved" in err
+    assert "no private term source resolved, and one is required" in err
     assert "deny-terms.txt" in err
     assert TEAM not in err
     assert staged() == 0
 
 
-def test_contract_2_reads_the_environment(repo, monkeypatch):
+def test_the_requirement_reads_the_environment(repo, monkeypatch):
     # type: (Path, pytest.MonkeyPatch) -> None
     write(repo / "doc.md", "ordinary\n")
     git("add", "doc.md", cwd=repo)
-    monkeypatch.setenv("GIT_HYGIENE_EXIT_CONTRACT", "2")
-    assert staged() == 4
-    assert staged("--exit-contract", "1") == 0
-    monkeypatch.setenv("GIT_HYGIENE_EXIT_CONTRACT", "3")
+    monkeypatch.setenv("GIT_HYGIENE_REQUIRE_PRIVATE", "yes")
+    assert staged() == 1
+    assert staged("--no-require-private") == 0
+    monkeypatch.setenv("GIT_HYGIENE_REQUIRE_PRIVATE", "maybe")
     with pytest.raises(SystemExit) as info:
         staged()
     assert info.value.code == 2
 
 
-def test_contract_2_message_file_missing_could_not_run(repo, capsys):
-    # type: (Path, object) -> None
-    write(repo / ".git" / "info" / "deny-terms", SECRET + "\n")
+def test_a_missing_message_file_passes_even_when_required(repo):
+    # type: (Path) -> None
     missing = str(repo / "no-such-message")
-    assert check_identifiers.main(["--message", missing, "--exit-contract", "2"]) == 4
-    assert "commit message file not found" in capsys.readouterr()[1]
+    assert check_identifiers.main(["--message", missing, "--require-private"]) == 0
     assert check_identifiers.main(["--message", missing]) == 0

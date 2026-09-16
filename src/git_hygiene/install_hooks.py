@@ -1,45 +1,45 @@
-"""Install git-hygiene's hook shims directly into a repository's
+"""Install git-hygiene's hooks directly into a repository's
 `.git/hooks/`, with no `pre-commit` framework involved.
 
-Each installed hook is a short POSIX shell shim that runs
-`git-hygiene run <hook>`, found on PATH, and hands it git's arguments.
-The dispatcher decides which checks run (see dispatch.py); the shim holds
-no logic, because it is the one file a package upgrade cannot replace.
-
-A shim is written for pre-commit and commit-msg, which the package's own
-checks use, and for every other hook a registered check declares.
+The framework is the front end (see Architecture.md). This installer is
+the fallback for a host that has none: each hook is a short POSIX shell
+shim calling `check-identifiers`, found on PATH, which refuses the commit
+when that command is missing.
 
 Idempotent by reseeding: every run rewrites a hook file from a fixed
 template rather than editing it in place, so a stale line from an
 earlier version cannot survive an upgrade, and a shim this installer
-wrote for a hook no longer in the set is removed. A hook file without
-this installer's marker belongs to someone else and is left alone unless
---force is given.
+wrote for a hook it no longer installs is removed. That includes the
+shims an unreleased dispatcher wrote for other hooks, which carry the
+same marker. A hook file without the marker belongs to someone else and
+is left alone unless --force is given.
 """
 
 import argparse
 import sys
 from pathlib import Path
-from typing import List, NamedTuple, Optional
+from typing import Dict, List, NamedTuple, Optional
 
-from . import checks
-from .gitconfig import ConfigError
 from .terms import git_dir
 
 MARKER = "# managed-by: git-hygiene install-hooks -- do not edit; reinstall to update"
 
 _TEMPLATE = """#!/usr/bin/env bash
 {marker}
-if ! command -v git-hygiene >/dev/null 2>&1; then
-    echo "git-hygiene: git-hygiene is not on PATH; the {hook} hook cannot run" >&2
-    echo "git-hygiene: activate the environment it was installed into, or reinstall;" >&2
-    echo "git-hygiene: refusing, since a check that did not run has not passed" >&2
+if ! command -v check-identifiers >/dev/null 2>&1; then
+    echo "git-hygiene: check-identifiers not found on PATH; hook cannot run" >&2
+    echo "git-hygiene: activate the environment it was installed into, or reinstall" >&2
     exit 1
 fi
-exec git-hygiene run {hook} "$@"
+exec check-identifiers {args}
 """
 
-BASE_HOOKS = ("pre-commit", "commit-msg")
+# One shim per git hook this installer covers. commit-msg receives the
+# message file path as $1, which is git's calling convention.
+HOOKS: Dict[str, str] = {
+    "pre-commit": "--staged",
+    "commit-msg": '--message "$1"',
+}
 
 
 class Result(NamedTuple):
@@ -47,17 +47,8 @@ class Result(NamedTuple):
     ok: bool
 
 
-def hook_names() -> List[str]:
-    """The hooks to install: the package's own, plus any a registered
-    check declares. Raises ConfigError on a bad declaration."""
-    names = set(BASE_HOOKS)
-    for check in checks.registry().values():
-        names.update(check.hooks)
-    return sorted(names)
-
-
 def render(hook_name: str) -> str:
-    return _TEMPLATE.format(marker=MARKER, hook=hook_name)
+    return _TEMPLATE.format(marker=MARKER, args=HOOKS[hook_name])
 
 
 def owned_by_us(path: Path) -> bool:
@@ -115,8 +106,8 @@ def managed_hooks(hooks_dir: Path) -> List[str]:
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Install git-hygiene's hook shims directly into .git/hooks - no "
-            "pre-commit framework. Each shim runs `git-hygiene run <hook>`."
+            "Install git-hygiene's pre-commit and commit-msg hooks directly "
+            "into .git/hooks, for a host without the pre-commit framework."
         ),
     )
     parser.add_argument("repo", nargs="?", default=".", help="repository path (default: cwd)")
@@ -152,16 +143,11 @@ def main(argv: Optional[List[str]] = None) -> int:
         for name in managed_hooks(hooks_dir):
             results.append(remove_one(hooks_dir, name, args.dry_run))
     else:
-        try:
-            wanted = hook_names()
-        except ConfigError as exc:
-            sys.stderr.write(f"install-hooks: {exc}\n")
-            return 2
-        for name in wanted:
+        for name in HOOKS:
             results.append(install_one(hooks_dir, name, args.force, args.dry_run))
         for name in managed_hooks(hooks_dir):
-            if name not in wanted:
-                results.append(remove_one(hooks_dir, name, args.dry_run, "no check uses it"))
+            if name not in HOOKS:
+                results.append(remove_one(hooks_dir, name, args.dry_run, "no longer installed"))
 
     for result in results:
         print(result.line)

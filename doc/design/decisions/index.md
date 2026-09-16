@@ -25,3 +25,4 @@ one-to-one.
 | [0013](0013-build-tools-run-at-the-floor.md) | Build tools are pinned to releases that run at the floor | 2026-09-16 |
 | [0014](0014-ci-waits-for-a-rhel-8-10-runner.md) | CI is not attempted until a RHEL 8.10 runner exists | 2026-09-16 |
 | [0015](0015-hooks-admit-pre-commit-2-17.md) | The hooks admit pre-commit 2.17.0, the newest release that runs at the floor | 2026-09-16 |
+| [0016](0016-pre-commit-is-the-hook-front-end.md) | pre-commit is the hook front end; the dispatcher is removed | 2026-09-16 |

@@ -10,9 +10,10 @@
 - id: deny-terms
   name: no engagement identifiers in content
   description: >-
-    Refuse staged content matching a term from ~/.config/git/deny-terms.txt.
-    Exits silently when that file is absent, so a clone without one is
-    unaffected.
+    Refuse staged content matching a term from the layered term lists
+    (~/.config/git/deny-terms.txt, .deny-terms, .deny-terms.private and
+    others). Passes silently when no list resolves, unless given
+    --require-private.
   entry: check-identifiers --staged
   language: python
   pass_filenames: false
@@ -39,4 +40,15 @@
   pass_filenames: false
   always_run: true
   stages: [manual]
+  minimum_pre_commit_version: "2.17.0"
+
+- id: normalize-file-modes
+  name: record 0755 for files starting with #!, 0644 for the rest
+  description: >-
+    Sets the mode of every staged regular file in the index and the
+    working tree. Exceptions are listed in .gitmodes-exceptions.
+  entry: normalize-file-modes
+  language: python
+  pass_filenames: false
+  always_run: true
   minimum_pre_commit_version: "2.17.0"

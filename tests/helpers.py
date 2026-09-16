@@ -1,7 +1,7 @@
 """Shared scaffolding for tests that drive real commits through the
 installed hook shims.
 
-Commands the dispatcher runs are found on PATH, so each test gets a bin
+Commands the hook shims run are found on PATH, so each test gets a bin
 directory of portable stand-ins for the console scripts: an extensionless
 POSIX shell script (what bash, and so the hook shim, finds) and, on
 Windows, a `.cmd` file (what a native interpreter can start). Both run
@@ -16,10 +16,8 @@ import sys
 from pathlib import Path  # noqa: F401 - resolves the type comments below
 
 SRC_ROOT = str(Path(__file__).resolve().parent.parent / "src")
-FAKE_CHECK = str(Path(__file__).resolve().parent / "fakecheck.py")
 
 CONSOLE_SCRIPTS = {
-    "git-hygiene": "git_hygiene.dispatch",
     "check-identifiers": "git_hygiene.check_identifiers",
     "normalize-file-modes": "git_hygiene.filemode",
     "install-hooks": "git_hygiene.install_hooks",
@@ -30,14 +28,7 @@ _ISOLATE = (
     "GIT_HYGIENE_NO_INHERIT",
     "GIT_HYGIENE_NO_WALK",
     "GIT_HYGIENE_SHOW_PRIVATE_TERMS",
-    "GIT_HYGIENE_EXIT_CONTRACT",
-    "GIT_HYGIENE_ENABLE",
-    "GIT_HYGIENE_DISABLE",
-    "GIT_HYGIENE_REQUIRE",
-    "GIT_HYGIENE_OPTIONAL",
-    "GIT_HYGIENE_VERBOSE",
-    "GIT_HYGIENE_TERSE",
-    "GIT_HYGIENE_DEBUG",
+    "GIT_HYGIENE_REQUIRE_PRIVATE",
     "GIT_INDEX_FILE",
     "GIT_DIR",
     "GIT_WORK_TREE",
@@ -98,7 +89,6 @@ def make_bin(bin_dir):
     bin_dir.mkdir(parents=True, exist_ok=True)
     for name, module in CONSOLE_SCRIPTS.items():
         python_command(bin_dir, name, "-m " + module)
-    python_command(bin_dir, "fake-check", f'"{fwd(FAKE_CHECK)}"')
     return bin_dir
 
 
@@ -106,7 +96,7 @@ class Sandbox:
     """A repository, an isolated environment, and the shims installed.
 
     Every location the package reads outside the repository points into
-    the test's own directory: term lists, settings and declarations."""
+    the test's own directory: term lists above all."""
 
     def __init__(self, root):
         # type: (Path) -> None
@@ -115,8 +105,6 @@ class Sandbox:
         self.home.mkdir(parents=True, exist_ok=True)
         self.bin = make_bin(root / "bin")
         self.config_home = root / "xdg-config"
-        self.data_home = root / "xdg-data"
-        self.checks_dir = self.data_home / "git-hygiene" / "checks"
         env = {k: v for k, v in os.environ.items() if k not in _ISOLATE}
         env.update(
             {
@@ -126,8 +114,6 @@ class Sandbox:
                 "GIT_CONFIG_NOSYSTEM": "1",
                 "XDG_CONFIG_HOME": str(self.config_home),
                 "XDG_CONFIG_DIRS": str(root / "xdg-config-dirs"),
-                "XDG_DATA_HOME": str(self.data_home),
-                "XDG_DATA_DIRS": str(root / "xdg-data-dirs"),
                 "GIT_HYGIENE_WALK_TO": str(root),
                 "GIT_AUTHOR_NAME": "Test",
                 "GIT_AUTHOR_EMAIL": "test@example.invalid",
@@ -180,10 +166,6 @@ class Sandbox:
         # type: (Path) -> int
         r = self.git("rev-list", "--count", "HEAD", cwd=cwd)
         return int(r.stdout.strip()) if r.returncode == 0 else 0
-
-    def declare(self, name, text):
-        # type: (str, str) -> Path
-        return write(self.checks_dir / (name + ".conf"), text)
 
     def private_terms(self, text, cwd=None):
         # type: (str, Path) -> Path

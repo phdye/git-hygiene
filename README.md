@@ -31,6 +31,7 @@ repos:
     hooks:
       - id: deny-terms
       - id: deny-terms-msg
+      - id: normalize-file-modes   # optional; see "File modes" below
 ```
 
 Then create your term list:
@@ -94,53 +95,71 @@ found, their class, and how many terms each contributed. That is the
 answer to "did it actually find my list", which used to require guessing
 from behavior.
 
+## Hook options
+
+### Requiring a private list
+
+Add `--require-private` to make a missing private list a refusal instead of a
+silent pass, for a repository whose commits must never go unchecked:
+
+```yaml
+      - id: deny-terms
+        args: [--require-private]
+```
+
+`GIT_HYGIENE_REQUIRE_PRIVATE=1` does the same for every repository on one
+machine, and `--no-require-private` turns it back off for a run. The refusal
+names every place a private list was looked for, and never a term.
+
+### File modes
+
+```yaml
+      - id: normalize-file-modes
+```
+
+records mode 0755 for staged files whose content starts with `#!` and 0644
+for everything else, in the index and in the working tree, so the commit
+lands on the first attempt. Paths listed in `.gitmodes-exceptions` (globs,
+one per line) keep the mode you staged.
+
+### On RHEL 8.10 and other Python 3.6 hosts
+
+`pre-commit` 2.17.0 is the newest release that installs on Python 3.6, and
+these hooks accept it. The first commit after installing builds the package
+from this repository, which needs PyPI, or a local directory of the pinned
+build wheels given as `PIP_FIND_LINKS` with `PIP_NO_INDEX=1`. Without either,
+install git-hygiene once and name its commands directly:
+
+```yaml
+repos:
+  - repo: local
+    hooks:
+      - id: deny-terms
+        name: no engagement identifiers in content
+        entry: check-identifiers --staged
+        language: system
+        pass_filenames: false
+        always_run: true
+```
+
 ## Use without `pre-commit`
 
-`pre-commit` needs git 2.31 or newer (it calls `git ls-files
---deduplicate`). Most current distributions are well past that - RHEL
-8.10, for instance, ships 2.43 - but if your git is older, install the
-hooks directly instead, with no framework involved:
+For a host that cannot have the framework at all:
 
 ```bash
 pip install git-hygiene
 install-hooks             # writes .git/hooks/pre-commit and commit-msg
 ```
 
-Each installed hook is a small shell shim that runs `git-hygiene run
-<hook>` from PATH, so it needs the package installed somewhere that shim
-can find it, but nothing else; without it the shim refuses the commit.
-Re-running `install-hooks` is safe - it reseeds its own hook files,
-removes ones it no longer needs, and leaves anything it did not install
-alone unless you pass `--force`. `install-hooks --dry-run` shows what
-would change without writing, and `install-hooks --uninstall` removes
-only the hooks this tool manages.
-
-### One front end, many checks
-
-`git-hygiene run` runs every check selected for a hook. Out of the box
-that is `filemode` (staged files starting with `#!` are recorded as
-0755, everything else as 0644; exceptions go in `.gitmodes-exceptions`),
-`deny-terms` on `pre-commit`, and `deny-terms-msg` on `commit-msg`.
-Other packages add checks by dropping a declaration into
-`~/.local/share/git-hygiene/checks/`.
-
-A repository chooses among installed checks in a tracked `.git-hygiene`
-file, and a single clone in `.git/info/git-hygiene`:
-
-```ini
-[check "filemode"]
-    enabled = false
-[check "deny-terms"]
-    required = true
-```
-
-Those two settings are all a repository can make; it can never name a
-program to run. `required = true` on `deny-terms` makes a commit fail on
-any machine where no private term list is found, instead of passing
-with nothing checked. `git-hygiene run --explain pre-commit` shows what
-will run and where each setting came from, and
-`GIT_HYGIENE_VERBOSE=1` makes a commit report the checks that stood
-down.
+Each installed hook is a small shell shim that calls `check-identifiers`
+from PATH, so it needs the package installed somewhere that shim can find
+it, but nothing else; without it the shim refuses the commit. File-mode
+normalization and other tools' checks need the framework. Re-running
+`install-hooks` is safe - it reseeds its own hook files, removes other hooks
+it wrote earlier, and leaves anything it did not install alone unless you
+pass `--force`. `install-hooks --dry-run` shows what would change without
+writing, and `install-hooks --uninstall` removes only the hooks this tool
+manages.
 
 ## Adopting git-hygiene in a project
 
@@ -166,6 +185,7 @@ unable to catch a leak unless a private list is provisioned there; see
 | `deny-terms` | pre-commit | Refuses staged content matching a term. |
 | `deny-terms-msg` | commit-msg | Refuses a commit message matching a term. Message-only leaks are real; content alone is not enough. |
 | `audit-tree` | manual | Audits the whole repository, optionally every git object. For pre-publish, not per-commit. |
+| `normalize-file-modes` | pre-commit | Records 0755 for files starting with `#!` and 0644 for the rest. |
 
 ## Auditing before you publish
 

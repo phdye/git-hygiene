@@ -1,6 +1,6 @@
-"""The native hook front end: install-hooks writes plain
-`.git/hooks/` shims that need no `pre-commit` framework, which is what
-covers git older than the framework's own 2.31 requirement.
+"""The fallback without the framework: install-hooks writes plain
+`.git/hooks/` shims that need no `pre-commit`, for a host that cannot
+have it.
 
 Kept 3.6.8-clean like the rest of tests/.
 No `from __future__ import annotations`, no runtime
@@ -34,11 +34,8 @@ def git(*args, cwd):
 
 
 @pytest.fixture
-def repo(tmp_path, monkeypatch):
-    # type: (Path, pytest.MonkeyPatch) -> Path
-    # Declarations decide which hooks are installed; keep the machine's out.
-    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "no-data-here"))
-    monkeypatch.setenv("XDG_DATA_DIRS", str(tmp_path / "no-data-dirs"))
+def repo(tmp_path):
+    # type: (Path) -> Path
     r = tmp_path / "repo"
     r.mkdir()
     git("init", "-q", cwd=r)
@@ -66,10 +63,30 @@ def test_writes_both_hooks_executable(repo):
 def test_idempotent_reinstall(repo):
     # type: (Path) -> None
     assert install_hooks.main([str(repo)]) == 0
-    first = (repo / ".git" / "hooks" / "pre-commit").read_text(encoding="utf-8")
+    hooks = repo / ".git" / "hooks"
+    first = {n: (hooks / n).read_bytes() for n in ("pre-commit", "commit-msg")}
     assert install_hooks.main([str(repo)]) == 0
-    second = (repo / ".git" / "hooks" / "pre-commit").read_text(encoding="utf-8")
+    second = {n: (hooks / n).read_bytes() for n in first}
     assert first == second
+    assert b"exec check-identifiers --staged\n" in first["pre-commit"]
+    assert b'exec check-identifiers --message "$1"\n' in first["commit-msg"]
+    assert b"git-hygiene run" not in first["pre-commit"] + first["commit-msg"]
+
+
+def test_a_marked_hook_it_no_longer_installs_is_removed(repo, capsys):
+    # type: (Path, pytest.CaptureFixture[str]) -> None
+    """An unreleased dispatcher wrote marked shims for other hooks, and
+    for pre-commit and commit-msg a different body. Reinstalling brings
+    both back to this installer's set."""
+    hooks = repo / ".git" / "hooks"
+    hooks.mkdir(parents=True, exist_ok=True)
+    old = "#!/usr/bin/env bash\n{}\nexec git-hygiene run {{}} \"$@\"\n".format(install_hooks.MARKER)
+    for name in ("pre-commit", "pre-push"):
+        (hooks / name).write_bytes(old.format(name).encode("utf-8"))
+    assert install_hooks.main([str(repo)]) == 0
+    assert "removed pre-push  (no longer installed)" in capsys.readouterr().out
+    assert not (hooks / "pre-push").exists()
+    assert b"exec check-identifiers --staged" in (hooks / "pre-commit").read_bytes()
 
 
 def test_dry_run_writes_nothing(repo):
@@ -128,8 +145,7 @@ def test_non_repository_reports_error(tmp_path):
 def test_installed_hook_actually_blocks_a_commit(tmp_path):
     # type: (Path) -> None
     """The real proof: git itself, not this package, invoking the hook
-    it was pointed at, which runs the dispatcher, which runs the
-    scanner. Git for Windows runs a shebang-line hook through its own
+    it was pointed at, which runs the scanner. Git for Windows runs a shebang-line hook through its own
     bundled sh regardless of the NTFS exec bit; Cygwin and other POSIX
     gits honor the exec bit directly - either way this is the same shim
     file exercised the same way a real commit would."""
@@ -145,7 +161,6 @@ def test_installed_hook_actually_blocks_a_commit(tmp_path):
     # apart - a completely broken hook satisfies them. Assert on what the
     # hook actually said.
     assert "BLOCKED" in r.stderr, r.stderr
-    assert "deny-terms: refused" in r.stderr, r.stderr
     assert "syntax error" not in r.stderr, r.stderr
     assert "blockedname" not in r.stderr
 

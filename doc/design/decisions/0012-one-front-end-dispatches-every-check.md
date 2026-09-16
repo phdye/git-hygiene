@@ -89,3 +89,9 @@ framework: see above. A shell drop-in directory: no declaration, so no
 applicability, no requirement, and no way to tell a missing step from a
 passing one. One console script with a subcommand per check: the checks do
 not share dependencies or release cadence.
+
+## Superseded
+
+Replaced on September 16, 2026, by
+[0016](0016-pre-commit-is-the-hook-front-end.md), before any release carried
+the dispatcher.

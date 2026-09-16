@@ -27,10 +27,11 @@ The packaging gate moved to the replica, where pre-commit 2.17.0 is the
 newest release that installs
 ([0015](decisions/0015-hooks-admit-pre-commit-2-17.md)).
 
-The dispatcher's criteria live in `tests/test_dispatch.py`, the term-class
-reproductions in `tests/test_term_classes.py`. Both drive real commits through
-the installed shims, with every location the package reads outside the
-repository pointed into the test's own directory (`tests/helpers.py`). The
+The checks' criteria live in `tests/test_hooks.py`, the term-class
+reproductions in `tests/test_term_classes.py`, and the framework's in the
+packaging tests, which pin a snapshot of the working tree and commit through
+an installed `pre-commit`. All of them keep every location the package reads
+outside the repository inside the test's own directory (`tests/helpers.py`). The
 sdist test skips, with a reason naming the dev extra, on an interpreter
 without `setuptools_scm`. At the floor, `spike/build-at-floor` covers the
 same property.
@@ -58,14 +59,13 @@ so that the generated `_version.py` (which uses a 3.7 import) is left out:
         src/git_hygiene/__init__.py src/git_hygiene/terms.py \
         src/git_hygiene/resolution.py src/git_hygiene/check_identifiers.py \
         src/git_hygiene/audit_tree.py src/git_hygiene/install_hooks.py \
-        src/git_hygiene/options.py src/git_hygiene/gitconfig.py \
-        src/git_hygiene/checks.py src/git_hygiene/settings.py \
-        src/git_hygiene/dispatch.py src/git_hygiene/filemode.py
+        src/git_hygiene/options.py src/git_hygiene/filemode.py
 
 At 3.6 the available pytest predates `pyproject.toml` support, so
 `addopts` is not applied and the packaging tests are collected rather than
-deselected. They must then skip, and the skip reason must name the missing
-prerequisite. Read the reason, not the count.
+deselected. With `pre-commit` 2.17.0 on `PATH` they run; without it they
+skip, and the skip reason must name the missing prerequisite. Read the
+reason, not the count.
 
 Neither of those builds anything. The suite imports the code straight from
 `src/`, which is how a package that could not be built at 3.6 went unnoticed
@@ -87,25 +87,28 @@ to `pyproject.toml` or `setup.cfg`.
 A result from a sandbox or a container does not count. The suite runs on a
 RHEL 8.10-equivalent host at Python 3.6. It has also run on Windows under a
 native interpreter and, until CI was set aside, on hosted Linux. The Windows
-cell matters because two defects lived only there: shims written with CRLF endings, and a POSIX
-top-level path from Cygwin git that a Windows interpreter could not use.
+cell matters because two defects lived only there: shims written with CRLF
+endings, and a POSIX top-level path from Cygwin git that a Windows
+interpreter could not use.
 
 ### The cell that ships
 
-The native hooks cross four independent choices, and a result on each
-axis says nothing about their combination. The combination used on the
-development workstation has to be run as one, with a real `git commit`:
+The hooks cross three independent choices, and a result on each axis says
+nothing about their combination. The combination used on the development
+workstation has to be run as one, with a real `git commit`:
 
 | Axis | Value that ships |
 |---|---|
-| Interpreter that writes the hook | native Windows Python |
+| Interpreter that runs the framework and the checks | native Windows Python |
 | Shell that runs the hook | Cygwin bash |
 | git that runs the commit | Cygwin git |
-| How the dispatcher starts a check | `CreateProcess` on an `.exe` or `.cmd` found through `PATHEXT` |
 
-The last axis is why the test stand-ins for console scripts come in two
-forms: an extensionless shell script for bash to find, and a `.cmd` file for
-the native interpreter to start.
+The test stand-ins for console scripts come in two forms, an extensionless
+shell script for bash to find and a `.cmd` file for a native interpreter to
+start, so that the shims' tests hold in both cells. The framework under
+Windows Python has not been run in this cell; `normalize-file-modes` relies
+on `git checkout-index` there, since a native `os.chmod` cannot set the bit
+Cygwin git reads.
 
 Both defects named above passed every other cell. Check the outcome by what
 the hook printed (`BLOCKED` for a refusal, no `syntax error`, no traceback),

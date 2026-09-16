@@ -7,16 +7,24 @@ A repository names exceptions in `.gitmodes-exceptions` at its root, one
 path or glob per line, `#` starting a comment; a listed file keeps the
 mode its author staged, and each one is announced.
 
-Only the index changes. `git update-index --cacheinfo` records the new
-mode against the blob already staged and leaves the working tree alone,
-so a partly staged file comes through intact. The staged blob,
-not the working file, decides the rule, since it is what is committed.
+The staged blob, not the working file, decides the rule, since it is
+what is committed. `git update-index --cacheinfo` records the new mode
+against the blob already staged, so a partly staged file commits exactly
+what was staged. The working file is then given the same mode, because
+the pre-commit framework fails any hook whose run changes `git diff`, and
+an index mode the working file lacks is such a change when core.fileMode
+is on. Where the working file still holds exactly the staged blob (always
+the case under the framework, which sets unstaged changes aside first),
+git itself rewrites it with `checkout-index`; otherwise only its
+permission bits are changed.
 
-Exit contract 2: 0 ran, 2 the exceptions file is unusable, 3 no regular
-file was staged, 4 not inside a work tree.
+Exit codes: 0 ran, 1 could not update the index or is outside a work
+tree, 2 the exceptions file is unusable.
 """
 
 import argparse
+import os
+import stat
 import subprocess
 import sys
 from fnmatch import fnmatchcase
@@ -93,6 +101,49 @@ def shebang(root: Path, blob_ids: List[str]) -> Dict[str, bool]:
     return result
 
 
+def _working_blobs(root: Path, paths: List[str]) -> Dict[str, str]:
+    """path -> blob id of the working file as `git add` would store it."""
+    present = [p for p in paths if (root / p).is_file() and not (root / p).is_symlink()]
+    if not present:
+        return {}
+    r = git("hash-object", "--", *present, cwd=root)
+    ids = r.stdout.decode("ascii", "replace").split()
+    return dict(zip(present, ids)) if r.returncode == 0 and len(ids) == len(present) else {}
+
+
+def sync_working_modes(root: Path, changed: List[Tuple[str, str, str]]) -> List[str]:
+    """Give each changed path's working file the mode now in the index.
+    Returns the paths whose working mode still differs afterwards."""
+    paths = [path for _want, _oid, path in changed]
+    working = _working_blobs(root, paths)
+    same = [path for _want, oid, path in changed if working.get(path) == oid]
+    for start in range(0, len(same), _BATCH):
+        git("checkout-index", "-f", "--", *same[start : start + _BATCH], cwd=root)
+    for want, oid, path in changed:
+        if path in same or path not in working:
+            continue
+        target = root / path
+        bits = stat.S_IMODE(target.stat().st_mode)
+        if want == "100755":
+            bits |= (bits & 0o444) >> 2
+        else:
+            bits &= ~0o111
+        try:
+            os.chmod(str(target), bits)
+        except OSError:
+            pass
+    if not paths:
+        return []
+    r = git("diff", "--raw", "-z", "--", *paths, cwd=root)
+    fields = r.stdout.decode("utf-8", "replace").split("\0")
+    left = []
+    for head, name in zip(fields[0::2], fields[1::2]):
+        parts = head.split()
+        if len(parts) >= 2 and parts[0].lstrip(":") != parts[1]:
+            left.append(name)
+    return left
+
+
 def _file_mode_is_on(root: Path) -> bool:
     r = git("config", "--bool", "core.fileMode", cwd=root)
     return r.stdout.decode("utf-8", "replace").strip() != "false"  # unset means true
@@ -102,15 +153,15 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
             "Record mode 0755 for staged files that start with #! and 0644 for "
-            "the rest, in the index only. Exceptions: .gitmodes-exceptions."
+            "the rest, in the index and the working file. Exceptions: .gitmodes-exceptions."
         ),
     )
     parser.parse_args(argv)
 
     root = git_toplevel()
     if root is None:
-        _say("not inside a git work tree; nothing to normalize")
-        return 4
+        _say("not inside a git work tree; cannot normalize")
+        return 1
 
     exceptions = read_exceptions(root)
     if exceptions:
@@ -128,7 +179,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     modes = staged_modes(root)
     regular = {p: v for p, v in modes.items() if v[0] in ("100644", "100755")}
     if not regular:
-        return 3
+        return 0
 
     starts = shebang(root, sorted({oid for _mode, oid in regular.values()}))
     to_set: List[Tuple[str, str, str]] = []
@@ -153,14 +204,16 @@ def main(argv: Optional[List[str]] = None) -> int:
         r = git(*args, cwd=root)
         if r.returncode != 0:
             _say(r.stderr.decode("utf-8", "replace").strip())
-            return 4
+            return 1
         for want, _oid, path in chunk:
             _say(f"mode {want[-3:]} on {path}")
             changed += 1
 
-    if changed and _file_mode_is_on(root):
-        _say("core.fileMode is true, so `git status` may now show a changed file's")
-        _say("working-tree mode differing from the index; the commit records the index mode.")
+    left = sync_working_modes(root, to_set) if changed else []
+    if left and _file_mode_is_on(root):
+        for path in left:
+            _say(f"could not give the working file {path} its new mode;")
+        _say("`git status` will show it differing from the index. The commit records the index mode.")
     return 0
 
 

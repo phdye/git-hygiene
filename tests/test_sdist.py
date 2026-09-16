@@ -102,5 +102,5 @@ def test_sdist_contains_no_spike(tmp_path):
     assert "9.9.9" in name
     with tarfile.open(str(out / name)) as archive:
         members = archive.getnames()
-    assert any(m.endswith("/src/git_hygiene/dispatch.py") for m in members)
+    assert any(m.endswith("/src/git_hygiene/check_identifiers.py") for m in members)
     assert not [m for m in members if "/spike/" in m or m.endswith("/spike")]

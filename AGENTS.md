@@ -59,33 +59,33 @@ one; do not build role machinery here speculatively.
    block their work.
 
 5. **Hook ids are a public API.** `deny-terms`, `deny-terms-msg`,
-   `audit-tree`. A consumer pins `rev:` and names an id; renaming one
-   breaks their config. The same holds for the console-script names and
-   for the check ids (`filemode`, `deny-terms`, `deny-terms-msg`) that
-   repositories name in `.git-hygiene`.
+   `audit-tree`, `normalize-file-modes`. A consumer pins `rev:` and names
+   an id; renaming one breaks their config. The same holds for the
+   console-script names.
 
-6. **A repository setting may never name a program.** `.git-hygiene`
-   and `.git/info/git-hygiene` can enable, disable, require or relax a
-   registered check id, nothing more (decision 0012). Widening that
-   lets a clone run code.
+6. **`pre-commit` is the front end (decision 0016).** Do not rebuild a
+   dispatcher, a check registry or a settings layer here; a check is a
+   console script plus a manifest entry. The manifest's
+   `minimum_pre_commit_version` stays at 2.17.0, the newest release that
+   installs on Python 3.6 (decision 0015).
 
 ---
 
-## Old git and the framework
+## The framework at the floor
 
-`pre-commit` needs git 2.31 or newer. Older git, and hosts where the
-framework cannot be installed, are served by `install-hooks`, which writes
-native shims; the framework is deliberately not patched. Decision 0008 has
-the measurements and the one condition that reopens it. Do not re-decide
-this without reading it.
+`pre-commit` 2.17.0 runs these hooks on the RHEL 8.10 replica
+(`spike/pre-commit-at-floor`). `install-hooks` remains for a host with no
+framework, writing shims that call `check-identifiers` directly. The
+framework is deliberately not patched; decision 0008 has the reasoning. Its
+4.6.1 and later releases need git 2.31, which 2.17.0 does not.
 
 ## CI is set aside
 
 No CI until a RHEL 8.10 (Cygwin) runner exists; decision 0014. Do not treat
 a CI result as verification, and do not shape a change to keep
 `.github/workflows/ci.yml` green. The only `pre-commit try-repo` success on
-record is CI run #1 (2026-08-16); the packaging gate must be re-established
-on the replica before the next tag.
+record on CI is run #1 (2026-08-16). The packaging tests now run on the
+replica with `pre-commit` 2.17.0 on `PATH`.
 
 ## Build tools are pinned to the floor
 
@@ -168,8 +168,7 @@ is rewritten for that reader and filed under `doc/`, never cited in place.
   the working notes.
 - **Code comments are minimal.** Explain the non-obvious choice, not the
   obvious mechanism. Docstring bloat gets trimmed on sight.
-- `pre-commit install` once per clone, on a machine whose git is new enough
-  — see the blocker above before assuming this works everywhere.
+- `pre-commit install` once per clone.
 
 ---
 
@@ -177,8 +176,7 @@ is rewritten for that reader and filed under `doc/`, never cited in place.
 
 - **The native git-hook front end is built.** `install-hooks` (new console
   script, `src/git_hygiene/install_hooks.py`) writes `.git/hooks/pre-commit`
-  and `.git/hooks/commit-msg` shims that call the package directly (since
-  2026-09-16 through the `git-hygiene` dispatcher) -
+  and `.git/hooks/commit-msg` shims that call `check-identifiers` directly -
   no framework, and no dependence on git's own version. Idempotent by
   reseeding, marks
   its own files so a foreign hook is left alone without `--force`, and
@@ -220,13 +218,11 @@ is rewritten for that reader and filed under `doc/`, never cited in place.
   `audit-tree --objects` performance against a large history remains
   unmeasured (a pre-existing gap, now with more per-hit work), and
   `.pre-commit-hooks.yaml` descriptions still describe the v0.1 behavior.
-- **Filename-authoritative classes and the multi-check front end are
-  built** (2026-09-16; decisions 0004/0006 amended, 0012 added; both
-  proposals carry implementation decision logs). `install-hooks` shims
-  now run `git-hygiene run <hook>`. This repository's own `.git/hooks`
-  still holds the removed secrets tool's `pre-commit`; moving it across
-  is the proposal's deliberate one-time migration step and has not been
-  done. The two sibling tools' checks are not yet registered as
-  declarations.
+- **Filename-authoritative classes are built** (2026-09-16; decisions
+  0004/0006 amended). The multi-check dispatcher built the same day was
+  replaced by the `pre-commit` front end (decision 0016, superseding 0012);
+  both proposals carry implementation decision logs. The two sibling tools'
+  checks become entries in each repository's `.pre-commit-config.yaml`,
+  written in those tools' own repositories.
 - Anything larger than a line gets its own file in the working notes and is
   referenced from here.
