@@ -26,8 +26,8 @@ The design, and the reasons behind it, are in
   `--require-private` (or `GIT_HYGIENE_REQUIRE_PRIVATE`) turns a missing
   private list into a refusal.
 - Term lists live outside the repository. A private list that git tracks is
-  a fatal error, and nothing is scanned. Never commit one; ignore
-  `.deny-terms.private` by name.
+  a fatal error, and nothing is scanned. Never commit one; put `.*.private`
+  and `*.private` in `.gitignore`.
 - Any resolution error (tracked private list, unauthorized negation, class
   conflict, unreadable list, missing named `.deny-terms`) stops the run
   with exit 1 before anything is scanned.

@@ -92,13 +92,17 @@ several paths and both take precedence over everything probed.
 ## Keeping a private list out of the index
 
 A private list in a working tree is one `git add -A` away from being committed,
-and the tool's own check fires only once the file is already staged. Ignore it
-by name. This repository's `.gitignore` carries:
+and the tool's own check fires only once the file is already staged. Ignore
+every file named private, not just this one. This repository's `.gitignore`
+carries:
 
-    .deny-terms.private
+    .*.private
+    *.private
 
-with the public `.deny-terms` deliberately absent from the list, since that one
-is meant to be committed. Any repository where someone might place a private
+The first covers `.deny-terms.private` and any other dotted list; the second
+covers a private file named without the leading dot, such as one written for
+`--terms`. The public `.deny-terms` matches neither, since that one is meant
+to be committed. Any repository where someone might place a private
 ancestor list wants the same rule. Note that a pattern written for the older
 `deny-terms.txt` convention will not match `.deny-terms.private`, because it
 has no `.txt` suffix. That gap existed in this repository until it was found

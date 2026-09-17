@@ -46,8 +46,10 @@ words is a term people learn to bypass.
 | one run, or CI | any path in `--terms` or `GIT_DENY_TERMS` |
 
 A private list in a working tree is one `git add -A` from being committed;
-add `.deny-terms.private` to the repository's `.gitignore`. A pattern for
-`deny-terms.txt` does not match it. More on choosing a location is in
+add `.*.private` and `*.private` to the repository's `.gitignore`. They
+cover `.deny-terms.private` and any other file named private, and leave
+the public `.deny-terms` alone. A pattern for `deny-terms.txt` matches
+none of these. More on choosing a location is in
 [../../term-files.md](../../term-files.md).
 
 ## Enforced and stated
