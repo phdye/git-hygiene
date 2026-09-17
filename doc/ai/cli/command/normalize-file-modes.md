@@ -1,7 +1,8 @@
 # normalize-file-modes
 
 Read when: the `normalize-file-modes` hook changed a file's mode, refused a
-commit, or printed a `filemode:` line.
+commit, or printed a `filemode:` line, or you need file modes normalized on
+a host without the framework.
 
 Sets the recorded mode of each staged regular file from its staged content:
 100755 when the blob starts with `#!`, 100644 otherwise. It is the entry of
@@ -17,7 +18,9 @@ term list.
 | `-h`, `--help` | print usage and exit 0 |
 
 No other argument is accepted; the command works on the repository
-containing the current directory.
+containing the current directory. It needs no framework: run it after
+`git add` and before `git commit`, by hand or from your own `pre-commit`
+hook, and it acts on what is staged at that moment.
 
 ## What it changes
 

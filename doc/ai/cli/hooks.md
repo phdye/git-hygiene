@@ -80,8 +80,10 @@ Install the package and run `install-hooks` in the clone. It writes plain
 `PATH`; see [command/install-hooks.md](command/install-hooks.md). The
 shims start `#!/usr/bin/env bash`, so the host needs bash. `install-hooks`
 writes no hook for file modes: run `normalize-file-modes` yourself in the
-clone after staging, or call it from a hook you maintain. Its behavior
-outside the framework is stated in its module and not covered by a test.
+clone after staging, or call it from a hook you maintain; see
+[command/normalize-file-modes.md](command/normalize-file-modes.md). That
+use is stated, not tested: the suite runs the command directly and through
+the framework, never from a hand-written hook.
 
 ## Enforced and stated
 

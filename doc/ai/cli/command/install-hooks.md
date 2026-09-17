@@ -5,9 +5,11 @@ Read when: you need the checks as plain git hooks on a host without
 
 Writes two shims into `<git dir>/hooks/`: `pre-commit` running
 `check-identifiers --staged` and `commit-msg` running
-`check-identifiers --message "$1"`. No framework is involved. File-mode
-normalization and other tools' checks are not installed; they need the
-framework.
+`check-identifiers --message "$1"`. No framework is involved. It writes
+no hook for file modes: run `normalize-file-modes` after staging, or call it
+from a hook you maintain (see
+[normalize-file-modes.md](normalize-file-modes.md)). Other tools' checks
+need the framework.
 
     install-hooks [-f] [-n] [-u] [repo]
 
