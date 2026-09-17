@@ -214,11 +214,14 @@ is rewritten for that reader and filed under `doc/`, never cited in place.
   repo-root `.deny-terms` fatal would block every commit in every repo that
   lacks one. 47 tests pass under the project's pinned 3.6.9 interpreter, and
   `--explain`, class-aware printing and `--show-private-terms` were each
-  driven by hand against a real repo there. Still to do before tagging:
-  `--no-inherit`/`--no-walk`/`--walk-to` have tests but no hand-verification,
-  `audit-tree --objects` performance against a large history remains
-  unmeasured (a pre-existing gap, now with more per-hit work), and
-  `.pre-commit-hooks.yaml` descriptions still describe the v0.1 behavior.
+  driven by hand against a real repo there. The pre-tag items are closed
+  (2026-09-17): `--no-inherit`, `--no-walk` and `--walk-to` were driven by
+  hand on the replica, which found `--walk-to` and `$HOME` compared
+  unresolved and ignored when named through a link (fixed, with a test);
+  `audit-tree --objects` was timed on the replica against a real client
+  history of 866 commits, 5,286 objects and an 18.8 MiB pack, with a
+  private list in force: 315 s, 10,159 hits; and the manifest descriptions
+  describe the layered model.
 - **Filename-authoritative classes are built** (2026-09-16; decisions
   0004/0006 amended). The multi-check dispatcher built the same day was
   replaced by the `pre-commit` front end (decision 0016, superseding 0012);
