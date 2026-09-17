@@ -33,10 +33,12 @@ The checks' criteria live in `tests/test_hooks.py`, the term-class
 reproductions in `tests/test_term_classes.py`, and the framework's in the
 packaging tests, which pin a snapshot of the working tree and commit through
 an installed `pre-commit`. All of them keep every location the package reads
-outside the repository inside the test's own directory (`tests/helpers.py`). The
-sdist test skips, with a reason naming the dev extra, on an interpreter
-without `setuptools_scm`. At the floor, `spike/build-at-floor` covers the
-same property.
+outside the repository inside the test's own directory (`tests/helpers.py`),
+and every git they start reads an empty global configuration and no system
+one (`tests/conftest.py`), so a developer's `init.templateDir` or hooks
+cannot reach the repositories a test creates. The sdist test skips, with a
+reason naming the dev extra, on an interpreter without `setuptools_scm`. At
+the floor, `spike/build-at-floor` covers the same property.
 
 Unit tests prove logic; only `try-repo` proves packaging. An earlier version
 of this facility passed every unit test and could not run as an installed
@@ -111,6 +113,16 @@ start, so that the shims' tests hold in both cells. The framework under
 Windows Python has not been run in this cell; `normalize-file-modes` relies
 on `git checkout-index` there, since a native `os.chmod` cannot set the bit
 Cygwin git reads.
+
+Whether `git checkout-index` can give a working file an executable bit
+depends on the git and the directory. Git for Windows never reports one on
+NTFS. Cygwin git cannot drop one from a file created under the ACL that
+Python 3.13 on Windows gives a directory made with mode 0700, which is how
+pytest makes every temporary directory, `--basetemp` included. The test that
+checks the working mode therefore skips there, naming the reason, and that
+check is untested in the shipping cell. By hand, with Cygwin git and a
+repository in a directory Cygwin created, `normalize-file-modes` left
+`git diff` unchanged (2026-09-16).
 
 Both defects named above passed every other cell. Check the outcome by what
 the hook printed (`BLOCKED` for a refusal, no `syntax error`, no traceback),

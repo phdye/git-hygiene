@@ -261,6 +261,16 @@ def test_modes_are_corrected_in_index_and_working_file(sb):
     sb.git("config", "core.fileMode", "true")
     _stage_mode(sb, "tool.sh", "#!/bin/sh\necho hi\n", False)
     _stage_mode(sb, "notes.md", "plain text\n", True)
+    if os.name == "nt":
+        # os.chmod cannot set the bit git reads here; let git write the
+        # files, as the framework's checkout does.
+        sb.git("checkout-index", "-f", "--", "tool.sh", "notes.md")
+        if not _diff_is_clean_of_modes(sb):
+            pytest.skip(
+                "this git cannot give a working file its index mode in this directory"
+                " (Git for Windows never can; Cygwin git cannot under the ACL a"
+                " Windows interpreter puts on pytest's temporary directories)"
+            )
     before = sb.git("diff").stdout
     r = sb.tool("normalize-file-modes")
     assert r.returncode == 0, r.stderr
