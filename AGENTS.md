@@ -102,9 +102,9 @@ table. Never reintroduce `[project]` or raise these pins while the floor is
 
 | Path | Holds |
 |---|---|
-| `src/git_hygiene/` | the library: term loading, scanning, reporting, and the three console scripts (`check-identifiers`, `audit-tree`, `install-hooks`). |
+| `src/git_hygiene/` | the library: term loading, scanning, reporting, file-mode normalization, and the four console scripts (`check-identifiers`, `audit-tree`, `normalize-file-modes`, `install-hooks`). |
 | `tests/` | unit and end-to-end by default; `pytest -m packaging` needs a real `pre-commit` install and is slow. |
-| `.pre-commit-hooks.yaml` | the public hook manifest — `deny-terms`, `deny-terms-msg`, `audit-tree`. |
+| `.pre-commit-hooks.yaml` | the public hook manifest — `deny-terms`, `deny-terms-msg`, `audit-tree`, `normalize-file-modes`. |
 | `setup.cfg` | package metadata, console scripts, extras (decision 0013). `pyproject.toml` holds the build pins and tool configuration. |
 | `.github/workflows/` | lint, test matrix, packaging job on `ubuntu-latest`. Set aside; see "CI is set aside" above. |
 | `doc/design/` | the specification, kept current: `Architecture.md` (what the package is) and `Verification-Plan.md` (how each claim is proven). |
