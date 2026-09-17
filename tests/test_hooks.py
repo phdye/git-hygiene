@@ -175,9 +175,7 @@ def test_the_negation_overrides_the_environment(sb):
 def test_a_malformed_requirement_is_a_usage_error(sb):
     # type: (Sandbox) -> None
     sb.stage("a.txt", "ordinary\n")
-    r = sb.tool(
-        "check-identifiers", "--staged", extra_env={"GIT_HYGIENE_REQUIRE_PRIVATE": "maybe"}
-    )
+    r = sb.tool("check-identifiers", "--staged", extra_env={"GIT_HYGIENE_REQUIRE_PRIVATE": "maybe"})
     assert r.returncode == 2
     assert "GIT_HYGIENE_REQUIRE_PRIVATE" in r.stderr
 

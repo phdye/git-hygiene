@@ -23,6 +23,7 @@ tree, 2 the exceptions file is unusable.
 """
 
 import argparse
+import contextlib
 import os
 import stat
 import subprocess
@@ -119,7 +120,7 @@ def sync_working_modes(root: Path, changed: List[Tuple[str, str, str]]) -> List[
     same = [path for _want, oid, path in changed if working.get(path) == oid]
     for start in range(0, len(same), _BATCH):
         git("checkout-index", "-f", "--", *same[start : start + _BATCH], cwd=root)
-    for want, oid, path in changed:
+    for want, _oid, path in changed:
         if path in same or path not in working:
             continue
         target = root / path
@@ -128,10 +129,8 @@ def sync_working_modes(root: Path, changed: List[Tuple[str, str, str]]) -> List[
             bits |= (bits & 0o444) >> 2
         else:
             bits &= ~0o111
-        try:
+        with contextlib.suppress(OSError):
             os.chmod(str(target), bits)
-        except OSError:
-            pass
     if not paths:
         return []
     r = git("diff", "--raw", "-z", "--", *paths, cwd=root)
@@ -213,7 +212,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     if left and _file_mode_is_on(root):
         for path in left:
             _say(f"could not give the working file {path} its new mode;")
-        _say("`git status` will show it differing from the index. The commit records the index mode.")
+        _say(
+            "`git status` will show it differing from the index. The commit records the index mode."
+        )
     return 0
 
 

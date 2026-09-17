@@ -80,7 +80,7 @@ def test_a_marked_hook_it_no_longer_installs_is_removed(repo, capsys):
     both back to this installer's set."""
     hooks = repo / ".git" / "hooks"
     hooks.mkdir(parents=True, exist_ok=True)
-    old = "#!/usr/bin/env bash\n{}\nexec git-hygiene run {{}} \"$@\"\n".format(install_hooks.MARKER)
+    old = f'#!/usr/bin/env bash\n{install_hooks.MARKER}\nexec git-hygiene run {{}} "$@"\n'
     for name in ("pre-commit", "pre-push"):
         (hooks / name).write_bytes(old.format(name).encode("utf-8"))
     assert install_hooks.main([str(repo)]) == 0

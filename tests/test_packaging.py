@@ -223,9 +223,7 @@ def test_framework_blocks_a_planted_private_term_without_printing_it(framework):
 @needs_tooling
 def test_framework_refuses_when_a_required_list_is_absent(framework):
     # type: (dict) -> None
-    path = _consumer(
-        framework, "required", "  - id: deny-terms\n    args: [--require-private]\n"
-    )
+    path = _consumer(framework, "required", "  - id: deny-terms\n    args: [--require-private]\n")
     r = _commit(framework, path, "a.md", "ordinary\n")
     assert r.returncode != 0
     assert "no private term source resolved, and one is required" in r.stdout, r.stdout
