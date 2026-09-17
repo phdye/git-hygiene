@@ -74,7 +74,7 @@ Python floor, which is proven by separate runs described in
 
 The package takes its version from git tags through `setuptools_scm`; no
 version number is written in the source tree. These pages describe the
-interface as of commit `594ae29` on `main`. Pin a tag in `rev:`, never a
+interface as of tag `v0.2.0` (commit `c9ac37b`). Pin a tag in `rev:`, never a
 branch, and check a pinned tag's behavior against these pages when it
 predates that commit.
 
