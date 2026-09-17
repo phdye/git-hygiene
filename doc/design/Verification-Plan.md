@@ -17,6 +17,8 @@ code appears to do.
 | Floor, static | mypy 0.971 with `--python-version 3.6` | workstation | that the code is written for the floor |
 | Floor, build | `pip wheel`, then install the wheel and the source tree, under Python 3.6 | workstation | that the package builds and installs at the floor |
 | Design docs | `pytest tests/test_design_docs.py` | workstation | that the decision index and the records agree |
+| Usage docs, structure | `pytest tests/test_doc_ai.py` with `AI_DOCS_CHECK` set to the checker | replica | that `doc/ai/` has the required structure and current route tables; without the checker the test skips, so read the skip reason |
+| Usage docs, interface | `pytest tests/test_doc_ai.py` | workstation and replica | that `doc/ai/` lists exactly the commands, options, environment variables and hook ids the code defines |
 | Sdist | `pytest tests/test_sdist.py` | workstation (needs `setuptools_scm` in the interpreter) | that a tagged build ships no `spike/` path |
 | Spikes | `test/spike-regen.sh` | replica | that every spike a decision cites still reproduces its findings |
 

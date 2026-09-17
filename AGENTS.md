@@ -108,6 +108,7 @@ table. Never reintroduce `[project]` or raise these pins while the floor is
 | `setup.cfg` | package metadata, console scripts, extras (decision 0013). `pyproject.toml` holds the build pins and tool configuration. |
 | `.github/workflows/` | lint, test matrix, packaging job on `ubuntu-latest`. Set aside; see "CI is set aside" above. |
 | `doc/design/` | the specification, kept current: `Architecture.md` (what the package is) and `Verification-Plan.md` (how each claim is proven). |
+| `doc/ai/` | usage documentation for an AI session in another repository that uses this package. Route tables are generated (`ai-docs-check --write doc/ai`); `tests/test_doc_ai.py` holds the pages to the code. |
 | `doc/design/decisions/` | decision records, numbered, append-only, listed one-to-one in `index.md`; `tests/test_design_docs.py` enforces the listing. |
 | `spike/<question>/` | one measurement per directory: a script, pinned inputs, dated `results-*.txt` transcripts. Never shipped (`MANIFEST.in`). |
 | `test/spike-regen.tsv`, `test/spike-regen.sh` | the spike register and the runner that certifies every spike still reproduces. Run on the replica. |
