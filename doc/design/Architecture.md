@@ -87,7 +87,9 @@ Sources, lowest precedence first:
 
 `--no-inherit` keeps only the highest named layer (`--terms`, else the
 environment). `--no-walk` drops layer 3, and `--walk-to DIR` bounds it. The
-walk otherwise stops at `$HOME` or the filesystem root.
+walk otherwise stops at `$HOME` or the filesystem root. Both bounds are
+compared after resolving symlinks, so a bound named through a link still
+holds.
 
 ### Settings
 

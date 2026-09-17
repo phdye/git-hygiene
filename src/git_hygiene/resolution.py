@@ -166,15 +166,22 @@ def _trusted(path: Path) -> Tuple[bool, str]:
 def walk_dirs(anchor: Path, walk_to: Optional[Path]) -> List[Path]:
     """The ancestor directories the walk probes, innermost first. Stops
     at walk_to (if given), $HOME, or a filesystem boundary - never above
-    them."""
-    home = Path.home()
+    them.
+
+    The bounds are compared after resolving symlinks on both sides. A
+    bound spelled through a link (a /tmp or $HOME that is a mount or a
+    symlink) otherwise never equals the resolved anchor git reports, and
+    the walk runs on to the filesystem root."""
+    home = Path.home().resolve()
+    bound = walk_to.resolve() if walk_to is not None else None
     dirs: List[Path] = []
     current = anchor.parent
     while current not in dirs:
         dirs.append(current)
-        if walk_to is not None and current == walk_to:
+        here = current.resolve()
+        if bound is not None and here == bound:
             break
-        if current == home or current.parent == current:
+        if here == home or current.parent == current:
             break
         current = current.parent
     return dirs

@@ -245,6 +245,26 @@ def test_walk_finds_an_ancestor_file_bounded_by_walk_to(tmp_path, monkeypatch):
     assert any(s.path == outer / ".deny-terms.private" for s in walked_sources)
 
 
+def test_walk_stops_at_walk_to_given_through_a_symlink(tmp_path, monkeypatch):
+    # type: (Path, pytest.MonkeyPatch) -> None
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "no-xdg-here"))
+    monkeypatch.delenv("GIT_DENY_TERMS", raising=False)
+    outer = tmp_path / "outer"
+    mid = outer / "mid"
+    inner = mid / "inner"
+    inner.mkdir(parents=True)
+    (outer / ".deny-terms.private").write_text("abovebound\n", encoding="utf-8")
+    (mid / ".deny-terms.private").write_text("atbound\n", encoding="utf-8")
+    link = tmp_path / "link-to-mid"
+    try:
+        link.symlink_to(mid, target_is_directory=True)
+    except OSError:
+        pytest.skip("symlinks unavailable here")
+    git("init", "-q", cwd=inner)
+    result = resolution.resolve(anchor=inner, walk_to=str(link))
+    assert names(result) == {"atbound"}
+
+
 def test_explain_lines_include_a_summary_with_counts(repo):
     # type: (Path) -> None
     f = repo / "a.txt"

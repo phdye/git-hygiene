@@ -26,6 +26,7 @@ Lowest precedence first. Terms from every layer are merged as a union.
 
 The ancestor walk starts at the anchor's parent and stops at `--walk-to`
 (if given), at `$HOME`, or at the filesystem root, whichever comes first.
+The bounds are compared after resolving symlinks.
 `--no-walk` drops layer 3. `--no-inherit` keeps only layer 7, or layer 6
 when layer 7 is empty.
 
